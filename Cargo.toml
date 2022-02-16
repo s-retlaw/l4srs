@@ -1,0 +1,26 @@
+[package]
+name = "l4srs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+warp = "0.3"
+ldap3_proto = "0.2"
+futures = "0.3"
+tracing = "0.1"
+tokio-util = "0.6"
+tracing-subscriber = "0.3"
+clap = "3"
+get_if_addrs = "0.5.3"
+features = "0.10.0"
+glob = "*"
+
+[profile.release]
+opt-level = "z"     # Optimize for size.
+lto = true          # Enable Link Time Optimization
+codegen-units = 1   # Reduce number of codegen units to increase optimizations.
+#panic = "abort"     # Abort on panic
+
