@@ -30,9 +30,9 @@ async fn acceptor(listener: Box<TcpListener>, cfg : ServerCfg) {
 
 
 pub async fn start_multiplexed_server(cfg : ServerCfg){
-    let addr = net::SocketAddr::from_str(&format!("0.0.0.0:{}", 2222)).unwrap();
+    let addr = net::SocketAddr::from_str(&format!("0.0.0.0:{}", &cfg.port)).unwrap();
     let listener = Box::new(TcpListener::bind(&addr).await.unwrap());
     // Initiate the acceptor task.
-    println!("starting multiplexed server on : 0.0.0.0:{} ...", 2222);
+    println!("starting multiplexed server on : 0.0.0.0:{} ...", &cfg.port);
     tokio::spawn(acceptor(listener, cfg.clone()));
 }
