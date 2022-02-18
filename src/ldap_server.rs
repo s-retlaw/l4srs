@@ -1,9 +1,10 @@
-use tokio::net::{TcpListener, TcpStream};
 use futures::SinkExt;
 use futures::StreamExt;
 use std::convert::TryFrom;
-use std::net;
-use std::str::FromStr;
+//use std::net;
+//use std::str::FromStr;
+//use tokio::net::TcpListener;
+use tokio::net::TcpStream;
 use tokio_util::codec::{FramedRead, FramedWrite};
 use crate::build_java;
 use ldap3_proto::simple::*;
@@ -30,7 +31,6 @@ impl LdapSession {
     }
 
     pub fn do_search(&mut self, lsr: &SearchRequest) -> Vec<LdapMsg> {
-        info!("in do search {:?}", lsr);
         let mut base = lsr.base.to_string();
         base.remove(0);
         let parts : Vec<&str> = base.split(":").collect();
@@ -41,11 +41,11 @@ impl LdapSession {
             let name_parts : Vec<&str> = vec![&parts[0], &addr_str, &parts[2]]; 
             name = name_parts.join("_").to_string();
             match build_java::ensure_mm_class_exists(&self.cfg.web_root, &name,  &parts[1], parts[2]) {
-                Err(e) => info!("Error creating MM class {}", e),
+                Err(e) => println!("Error creating MM class {}", e),
                 _ => (),
             }
       }
-        info!("the base is {}", name);
+        println!("the base is {}", name);
         vec![
             lsr.gen_result_entry(LdapSearchResultEntry {
                 dn: "cn=hello,dc=example,dc=com".to_string(),
@@ -60,7 +60,7 @@ impl LdapSession {
                     },
                     LdapPartialAttribute {
                         atype: "javaCodeBase".to_string(),
-                        vals: vec![format!("http://{}:{}/", self.cfg.http_addr, self.cfg.http_port)],
+                        vals: vec![format!("http://{}:{}/", self.cfg.addr, self.cfg.port)],
                     },
                     LdapPartialAttribute {
                         atype: "javaFactory".to_string(),
@@ -77,9 +77,7 @@ impl LdapSession {
     }
 }
 
-async fn handle_client(socket: TcpStream, cfg : ServerCfg) {
-    info!("in handle client");
-    // Configure the codec etc.
+pub async fn handle_client(socket: TcpStream, cfg : ServerCfg) {
     let (r, w) = tokio::io::split(socket);
     let mut reqs = FramedRead::new(r, LdapCodec);
     let mut resp = FramedWrite::new(w, LdapCodec);
@@ -90,7 +88,6 @@ async fn handle_client(socket: TcpStream, cfg : ServerCfg) {
     };
 
     while let Some(msg) = reqs.next().await {
-        debug!(?msg, "ldap message");
         let server_op = match msg
             .map_err(|_e| ())
             .and_then(|msg| ServerOps::try_from(msg))
@@ -131,25 +128,25 @@ async fn handle_client(socket: TcpStream, cfg : ServerCfg) {
     // Client disconnected
 }
 
-async fn acceptor(listener: Box<TcpListener>, cfg : ServerCfg) {
-    loop {
-        match listener.accept().await {
-            Ok((socket, _paddr)) => {
-                tokio::spawn(handle_client(socket, cfg.clone()));
-            }
-            Err(_e) => {
-                //pass
-            }
-        }
-    }
-}
+//async fn acceptor(listener: Box<TcpListener>, cfg : ServerCfg) {
+//    loop {
+//        match listener.accept().await {
+//            Ok((socket, _paddr)) => {
+//                tokio::spawn(handle_client(socket, cfg.clone()));
+//            }
+//            Err(_e) => {
+//                //pass
+//            }
+//        }
+//    }
+//}
 
-pub async fn start_ldap_server(cfg : ServerCfg){
-    let addr = net::SocketAddr::from_str(&format!("0.0.0.0:{}", cfg.ldap_port)).unwrap();
-    let listener = Box::new(TcpListener::bind(&addr).await.unwrap());
-    // Initiate the acceptor task.
-    println!("startng ldap://0.0.0.0:{} ...", cfg.ldap_port);
-    tokio::spawn(acceptor(listener, cfg.clone()));
-}
+//pub async fn start_ldap_server(cfg : ServerCfg){
+//    let addr = net::SocketAddr::from_str(&format!("0.0.0.0:{}", cfg.port)).unwrap();
+//    let listener = Box::new(TcpListener::bind(&addr).await.unwrap());
+//    // Initiate the acceptor task.
+//    println!("startng ldap://0.0.0.0:{} ...", cfg.port);
+//    tokio::spawn(acceptor(listener, cfg.clone()));
+//}
 
 

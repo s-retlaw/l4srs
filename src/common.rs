@@ -1,9 +1,8 @@
 
 #[derive(Debug, Clone)]
 pub struct ServerCfg{
-    pub http_addr : String,
-    pub http_port : u16,
-    pub ldap_port : u16,
+    pub addr : String,
+    pub port : u16,
     pub web_root : String,
 }
 

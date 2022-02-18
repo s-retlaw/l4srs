@@ -29,7 +29,7 @@ fn compile_java(java_file_path : &Path) -> bool {
     println!("attempting to build {}", java_file_name);
     match Command::new("javac").arg(java_file_name).output() {
         Err(e) => {
-            info!("Unable to compile {} : {}", java_file_name, e);
+            println!("Unable to compile {} : {}", java_file_name, e);
             return false;
         },
         _ => return true,
