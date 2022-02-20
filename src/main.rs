@@ -73,7 +73,7 @@ async fn main() -> () {
             ).arg(Arg::new("pALL")
                 .long("pALL")
                 .takes_value(false)
-                .help("Use all available ports.  Note : this will open thousands of ports and may hit open file limits.")
+                .help("Use all available ports up to 49150.  Note : this will open thousands of ports and may hit open file limits.")
             ).arg(Arg::new("pC20")
                 .long("pC20")
                 .takes_value(false)
@@ -138,7 +138,7 @@ fn get_ports_from_args(m : &ArgMatches) -> Vec<u16>{
         .collect();
     
     if m.occurrences_of("pALL") > 0 {
-        (1..std::u16::MAX).for_each(|p| ports.push(p));
+        (1..49150).for_each(|p| ports.push(p));
     }
 
     if m.occurrences_of("pC20") > 0 {
