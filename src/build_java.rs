@@ -144,9 +144,6 @@ fn get_exec_cmd_code(class_name : &str, l_cmd : &str, w_cmd : &str) -> String{
     .replace("<CLASS_NAME>", class_name)
     .replace("<W_CMD>", w_cmd)
     .replace("<L_CMD>", l_cmd);
-//    println!("+++++++++++++++++++++++++++");
-//    println!("{}", code);
-//    println!("+++++++++++++++++++++++++++");
     code
 }
 

@@ -1,10 +1,13 @@
-use crate::common::ServerCfg;
+use crate::common::{ServerCfg, RunServerCfg};
 use crate::ldap_server;
 use crate::web_server;
 
 use tokio::net::TcpListener;
+
 use std::net;
 use std::str::FromStr;
+use std::fs::File;
+use std::io::Write;
 
 async fn acceptor(listener: Box<TcpListener>, cfg : ServerCfg) {
     loop {
@@ -21,18 +24,52 @@ async fn acceptor(listener: Box<TcpListener>, cfg : ServerCfg) {
                     tokio::spawn(ldap_server::handle_client(stream, cfg.clone()));
                 }
             }
-            Err(_e) => {
-                //pass
+            Err(e) => {
+                println!("Error with listener on port {} : {}", &cfg.port, e);
             }
         }
     }
 }
 
+pub async fn run_multiplexed_servers(rsc : RunServerCfg) {
+    let mut tasks = Vec::new(); 
+    let mut opened = Vec::new();
+    let mut failed = Vec::new();
+    for port in rsc.ports {
+        let cfg = ServerCfg{
+            port,
+            addr : rsc.addr.clone(),
+            web_root : rsc.web_root.clone(),
+        };
+        let addr = net::SocketAddr::from_str(&format!("0.0.0.0:{}", &cfg.port)).unwrap();
+        match TcpListener::bind(&addr).await {
+            Ok(l) => {
+                opened.push(cfg.port.to_string());
+                tasks.push(tokio::spawn(acceptor(Box::new(l), cfg.clone())));
+            },
+            Err(e) => {
+                failed.push(cfg.port.to_string());
+                println!("Error opening port {} : {}", port, e);
+            },
+        }
+    }
+    println!("==================");
+    println!("We failed to start on these ports ({})", failed.join(","));
+    println!("==================");
+    println!("We started servers on these ports ({})", opened.join(","));
+    println!("==================");
+    try_write(rsc.ports_file_name, &opened);
+    try_write(rsc.failed_file_name, &failed);
+    if !opened.is_empty() { futures::future::join_all(tasks).await; }
+}
 
-pub async fn start_multiplexed_server(cfg : ServerCfg){
-    let addr = net::SocketAddr::from_str(&format!("0.0.0.0:{}", &cfg.port)).unwrap();
-    let listener = Box::new(TcpListener::bind(&addr).await.unwrap());
-    // Initiate the acceptor task.
-    println!("starting multiplexed server on : 0.0.0.0:{} ...", &cfg.port);
-    tokio::spawn(acceptor(listener, cfg.clone()));
+fn try_write(file_name : Option<String>, ports : &Vec<String>) {
+    match file_name {
+        Some(f) => {
+            let mut output = File::create(&f).expect(&format!("Unable to open file {}", &f));
+            let file_data = ports.join("\n");
+            write!(output, "{}", file_data).expect(&format!("Error writing to {}", &f));
+        },
+        None => {}
+    }
 }

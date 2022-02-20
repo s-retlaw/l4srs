@@ -34,14 +34,19 @@ use hyper::server::conn::Http;
 //    });
 //}
 pub async fn process_http(s : TcpStream, cfg : ServerCfg){
-let static_ = hyper_staticfile::Static::new(cfg.web_root);
-    tokio::task::spawn(async move {
+    println!("Entering process http on port {}", &cfg.port);
+    let static_ = hyper_staticfile::Static::new(cfg.web_root);
+    let r = tokio::task::spawn(async move {
         if let Err(http_err) = Http::new()
             .http1_only(true)
                 .serve_connection(s, static_)
                 .await {
                     eprintln!("Error while serving HTTP connection: {}", http_err);
         }
-    });
+    }).await;
+    match r {
+        Ok(()) => (),
+        Err(e) => println!("Error with http request {}", e),
+    };
 }
 
