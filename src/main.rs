@@ -14,7 +14,7 @@ use clap::{Arg, App, ArgMatches};
 #[tokio::main]
 async fn main() -> () {
     let matches = App::new("l4spoc")
-        .version("0.2.0")
+        .version("0.3.0")
         .author("Walter Szewelanczyk. <walterszewelanczyk@gmail.com>")
         .about("This is a Rust based POC to show the \"Log4Shell\" vulnerability in log4j.  This can create command based jars for exploiting and also has a stripped down meterpreter class that will run in a thread of the exploited process.  This hosts the ldap server and the http server from the same port.  You can run on multiple ports simultaneously to attempt to see what ports may be available for egress on the target machine.")
         .subcommand(App::new("build")
