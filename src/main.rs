@@ -138,7 +138,7 @@ fn get_ports_from_args(m : &ArgMatches) -> Vec<u16>{
         .collect();
     
     if m.occurrences_of("pALL") > 0 {
-        (1..49150).for_each(|p| ports.push(p));
+        (1..=49150).for_each(|p| ports.push(p));
     }
 
     if m.occurrences_of("pC20") > 0 {
