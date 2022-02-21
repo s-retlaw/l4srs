@@ -9,3 +9,8 @@ LDAP and HTTP requests from the same port.
 You can run on multiple ports simultaneously to attempt to see 
 what ports may be available for egress on for the target machine.
 
+If the request is not LDAP or HTTP it can then proxy the request
+to another machine, again on the same port.  If the target machine
+has only one egress port you can server LDAP, HTTP and use the same
+port to proxy the meterpreter connection to another local port or
+another machine.
