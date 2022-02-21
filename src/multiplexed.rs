@@ -1,6 +1,7 @@
 use crate::common::{ServerCfg, RunServerCfg};
 use crate::ldap_server;
 use crate::web_server;
+use crate::tcp_proxy;
 
 use tokio::net::TcpListener;
 
@@ -9,19 +10,47 @@ use std::str::FromStr;
 use std::fs::File;
 use std::io::Write;
 
+fn is_ldap(buf : &[u8]) -> bool{
+    return buf == [48, 12, 2, 1, 1];
+}
+
+fn is_http(buf : &[u8]) -> bool{
+    let peek = String::from_utf8_lossy(&buf).to_string();
+
+    match peek.as_str() {
+        "GET /" => true,
+        "POST " => true,
+        "HEAD " => true,
+        "PATCH" => true,
+        "OPTIO" => true,
+        "PUT /" => true,
+        _ => false,
+    }
+}
+
 async fn acceptor(listener: Box<TcpListener>, cfg : ServerCfg) {
     loop {
         match listener.accept().await {
             Ok((stream, _paddr)) => {
-                let mut buf = [0; 3];
+                let mut buf = [0; 5];
                 let _len = stream.peek(&mut buf).await.expect("peek failed");
-                let peek = String::from_utf8_lossy(&buf);
-                if peek == "GET" {
-                    println!("HTTP GET request on port {} from {}", &cfg.port, _paddr);
-                    web_server::process_http(stream, cfg.clone()).await;
-                }else{
-                    println!("Not a HTTP GET request sending to LDAP on port {} from {}", &cfg.port, _paddr);
+//                println!("the bytes are {:?}", buf);
+                if is_ldap(&buf) {
+                    println!("LDAP request on port {} from {}", &cfg.port, _paddr);
                     tokio::spawn(ldap_server::handle_client(stream, cfg.clone()));
+                } else if is_http(&buf){
+                    println!("HTTP request on port {} from {}", &cfg.port, _paddr);
+                    web_server::process_http(stream, cfg.clone()).await;
+                } else {
+                    match &cfg.proxxy_addr {
+                        Some(addr) =>{
+                            println!("Attempting to connect to proxy {}", &addr);
+                            tokio::spawn(tcp_proxy::proxy(stream, addr.clone(), cfg.port));
+                        }
+                        _ => {
+                            println!("Not an HTTP or LDAP request on port {} from {} and no proxy configured", &cfg.port, _paddr);
+                        },
+                    }
                 }
             }
             Err(e) => {
@@ -40,6 +69,7 @@ pub async fn run_multiplexed_servers(rsc : RunServerCfg) {
             port,
             addr : rsc.addr.clone(),
             web_root : rsc.web_root.clone(),
+            proxxy_addr : rsc.proxy_addr.clone(),
         };
         let addr = net::SocketAddr::from_str(&format!("0.0.0.0:{}", &cfg.port)).unwrap();
         match TcpListener::bind(&addr).await {

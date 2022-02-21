@@ -6,6 +6,7 @@ pub struct RunServerCfg{
     pub ports : Vec<u16>,
     pub ports_file_name : Option<String>,
     pub failed_file_name : Option<String>,
+    pub proxy_addr : Option<String>,
 }
 
 
@@ -14,6 +15,7 @@ pub struct ServerCfg{
     pub addr : String,
     pub port : u16,
     pub web_root : String,
+    pub proxxy_addr : Option<String>,
 }
 
 #[derive(Debug, Clone)]
