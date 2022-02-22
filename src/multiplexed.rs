@@ -3,6 +3,7 @@ use crate::ldap_server;
 use crate::web_server;
 use crate::tcp_proxy;
 
+use tokio::time::{timeout, Duration};
 use tokio::net::TcpListener;
 
 use std::net;
@@ -10,20 +11,24 @@ use std::str::FromStr;
 use std::fs::File;
 use std::io::Write;
 
-fn is_ldap(buf : &[u8]) -> bool{
-    return buf == [48, 12, 2, 1, 1];
+fn is_ldap(buf : &[u8], num_bytes : usize) -> bool{
+    if num_bytes < 3 {return false;}
+    
+    return buf == [48, 12, 2]; //, 1, 1];
 }
 
-fn is_http(buf : &[u8]) -> bool{
+fn is_http(buf : &[u8], num_bytes : usize) -> bool{
+    if num_bytes < 3 {return false;}
+
     let peek = String::from_utf8_lossy(&buf).to_string();
 
     match peek.as_str() {
-        "GET /" => true,
-        "POST " => true,
-        "HEAD " => true,
-        "PATCH" => true,
-        "OPTIO" => true,
-        "PUT /" => true,
+        "GET" => true,
+        "POS" => true,
+        "HEA" => true,
+        "PAT" => true,
+        "OPT" => true,
+        "PUT" => true,
         _ => false,
     }
 }
@@ -32,15 +37,29 @@ async fn acceptor(listener: Box<TcpListener>, cfg : ServerCfg) {
     loop {
         match listener.accept().await {
             Ok((stream, _paddr)) => {
-                let mut buf = [0; 5];
-                let _len = stream.peek(&mut buf).await.expect("peek failed");
-//                println!("the bytes are {:?}", buf);
-                if is_ldap(&buf) {
+                println!("New connection lets peek");
+                let mut buf = [0; 3];
+                let num_bytes : usize;
+
+                let peek_result = timeout(Duration::from_millis(100), stream.peek(&mut buf)).await;
+                num_bytes = match peek_result {
+                    Ok(r) => { 
+                        match r {
+                            Ok(b) => b,
+                            Err(_e) => {
+                                println!("Error peeking for port {} : {}", &cfg.port, _e);
+                                continue;
+                            },
+                        }
+                    },
+                    Err(_e) => 0,
+                };
+                if is_ldap(&buf, num_bytes) {
                     println!("LDAP request on port {} from {}", &cfg.port, _paddr);
                     tokio::spawn(ldap_server::handle_client(stream, cfg.clone()));
-                } else if is_http(&buf){
+                } else if is_http(&buf, num_bytes){
                     println!("HTTP request on port {} from {}", &cfg.port, _paddr);
-                    web_server::process_http(stream, cfg.clone()).await;
+                    tokio::spawn(web_server::process_http(stream, cfg.clone()));
                 } else {
                     match &cfg.proxxy_addr {
                         Some(addr) =>{
