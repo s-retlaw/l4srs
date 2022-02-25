@@ -71,10 +71,6 @@ async fn main() -> () {
                 .long("pF")
                 .takes_value(true)
                 .help("Load ports from a file.  Expects one port per line, can comment out a line with a #.")
-            ).arg(Arg::new("pALL")
-                .long("pALL")
-                .takes_value(false)
-                .help("Use all available ports up to 49150.  Note : this will open thousands of ports and may hit open file limits.")
             ).arg(Arg::new("pC20")
                 .long("pC20")
                 .takes_value(false)
@@ -132,15 +128,30 @@ fn get_default_ip_addr_str() -> String{
     return "127.0.0.1".to_string();
 }
 
+fn parse_port_entry(s : &str) -> Vec<u16>{
+    let s = s.trim();
+    if s.len() == 0 {return Vec::<u16>::new()};
+    let parts : Vec<&str>= s.split("-").collect();
+    match parts.len() {
+        1 => vec![parts[0].parse().expect(&format!("Error parsing port {} from --ports (-p) arg", s))],
+        2 => {
+            let l : u16 = parts[0].parse().expect(&format!("Error parsing port {} from entry {} in --ports (-p) arg", parts[0], s)); 
+            let h : u16 = parts[1].parse().expect(&format!("Error parsing port {} from entry {} in --ports (-p) arg", parts[1], s)); 
+            if l >= h {
+                println!("****************");
+                println!("WARNING : port range upper value is less than or equal lower value {} from ports (-p) arg", s);
+                println!("****************");
+            }
+            (l..=h).collect()
+        },
+        _ => panic!("Error parsing port {} from --ports (-p) arg", s),
+    }
+}
+
 fn parse_ports(ps : String) -> Vec<u16>{
     let ports : Vec<u16> = ps.split(",")
-        .filter_map(|s| {
-            let s = s.trim();
-            if s.len() == 0 {return None};
-            Some(s.parse().expect(&format!("Error parsing port {} from --ports (-p) arg", s)))
-        })
+        .flat_map(|s| parse_port_entry(s) )
         .collect();
-
     ports
 }
 
@@ -164,10 +175,6 @@ fn get_ports_from_file(file_name : &str) -> Vec<u16>{
 fn get_ports_from_args(m : &ArgMatches) -> Vec<u16>{
     let ps : String = m.value_of_t_or_exit("ports");
     let mut ports = parse_ports(ps);
-
-    if m.occurrences_of("pALL") > 0 {
-        (1..=49150).for_each(|p| ports.push(p));
-    }
 
     if m.occurrences_of("pC20") > 0 {
         get_c20_ports().into_iter().for_each(|p| ports.push(p));
