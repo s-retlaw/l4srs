@@ -132,36 +132,50 @@ fn get_default_ip_addr_str() -> String{
     return "127.0.0.1".to_string();
 }
 
-fn get_ports_from_args(m : &ArgMatches) -> Vec<u16>{
-    let ps : String = m.value_of_t_or_exit("ports");
-    let mut ports : Vec<u16> = ps.split(",")
+fn parse_ports(ps : String) -> Vec<u16>{
+    let ports : Vec<u16> = ps.split(",")
         .filter_map(|s| {
             let s = s.trim();
             if s.len() == 0 {return None};
             Some(s.parse().expect(&format!("Error parsing port {} from --ports (-p) arg", s)))
         })
         .collect();
-    
+
+    ports
+}
+
+fn get_c20_ports() -> Vec<u16> {
+    let cp20 : Vec<u16> = vec![80, 23, 443, 21, 22, 25, 3389, 110, 445, 139, 143, 53, 135, 3306, 8080, 1723, 111, 995, 993, 5900];
+    cp20
+}
+
+fn get_ports_from_file(file_name : &str) -> Vec<u16>{
+    let contents = fs::read_to_string(file_name).expect(&format!("Unable to read ports file : {}", file_name)); 
+    let file_ports : Vec<u16> = contents.split("\n")
+        .filter_map(|line| {
+            let s = line.trim();
+            if s.len() == 0 || s.starts_with("#") {return None};
+            Some(s.parse().expect(&format!("Error parsing port {} from file {}", s, file_name)))
+        })
+    .collect();
+    file_ports
+}
+
+fn get_ports_from_args(m : &ArgMatches) -> Vec<u16>{
+    let ps : String = m.value_of_t_or_exit("ports");
+    let mut ports = parse_ports(ps);
+
     if m.occurrences_of("pALL") > 0 {
         (1..=49150).for_each(|p| ports.push(p));
     }
 
     if m.occurrences_of("pC20") > 0 {
-        let cp20 : Vec<u16> = vec![80, 23, 443, 21, 22, 25, 3389, 110, 445, 139, 143, 53, 135, 3306, 8080, 1723, 111, 995, 993, 5900];
-        cp20.into_iter().for_each(|p| ports.push(p));
+        get_c20_ports().into_iter().for_each(|p| ports.push(p));
     }
 
     match m.value_of("pF") {
         Some(file_name) => {
-           let contents = fs::read_to_string(file_name).expect(&format!("Unable to read ports file : {}", file_name)); 
-           let file_ports : Vec<u16> = contents.split("\n")
-                .filter_map(|line| {
-                    let s = line.trim();
-                    if s.len() == 0 || s.starts_with("#") {return None};
-                    Some(s.parse().expect(&format!("Error parsing port {} from file {}", s, file_name)))
-                })
-                .collect();
-            file_ports.into_iter().for_each(|p| ports.push(p));
+            get_ports_from_file(file_name).into_iter().for_each(|p| ports.push(p));
         },
         None => {},
     }
