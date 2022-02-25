@@ -10,15 +10,15 @@ mod tcp_proxy;
 use common::{RunServerCfg, BuildCmdCfg};
 use std::fs;
 use get_if_addrs::{IfAddr, get_if_addrs};
-use clap::{Arg, App, ArgMatches};
+use clap::{Arg, Command, ArgMatches};
 
 #[tokio::main]
 async fn main() -> () {
-    let matches = App::new("l4spoc")
+    let matches = Command::new("l4spoc")
         .version("0.5.0")
         .author("Walter Szewelanczyk. <walterszewelanczyk@gmail.com>")
         .about("This is a Rust based POC to show the \"Log4Shell\" vulnerability in log4j.  This can create command based jars for exploiting and also has a stripped down meterpreter class that will run in a thread of the exploited process.  This hosts the ldap server and the http server from the same port.  You can run on multiple ports simultaneously to attempt to see what ports may be available for egress on the target machine.  This version adds a proxy option.  If the request is not LDAP or HTTP it can then proxy the request to another machine, again on the same port.  If the target machine has only one egress port you can server LDAP, HTTP and use the same port to proxy the meterpreter connection to another local port or another machine.")
-        .subcommand(App::new("build")
+        .subcommand(Command::new("build")
             .about("Build java class payload")
             .arg(Arg::new("class_name")
                 .long("class_name")
@@ -45,7 +45,7 @@ async fn main() -> () {
                 .takes_value(true)
                 .help("the dir to build the payloads.  Will create if it doesn't exist.  Should use same dir as www_root in run_servers.")
             ))
-        .subcommand(App::new("run")
+        .subcommand(Command::new("run")
             .about("Run the ldap and http servers")
             .arg(Arg::new("addr")
                 .long("addr")
