@@ -15,7 +15,7 @@ use clap::{Arg, Command, ArgMatches};
 #[tokio::main]
 async fn main() -> () {
     let matches = Command::new("l4spoc")
-        .version("0.5.0")
+        .version("0.6.0")
         .author("Walter Szewelanczyk. <walterszewelanczyk@gmail.com>")
         .about("This is a Rust based POC to show the \"Log4Shell\" vulnerability in log4j.  This can create command based jars for exploiting and also has a stripped down meterpreter class that will run in a thread of the exploited process.  This hosts the ldap server and the http server from the same port.  You can run on multiple ports simultaneously to attempt to see what ports may be available for egress on the target machine.  This version adds a proxy option.  If the request is not LDAP or HTTP it can then proxy the request to another machine, again on the same port.  If the target machine has only one egress port you can server LDAP, HTTP and use the same port to proxy the meterpreter connection to another local port or another machine.")
         .subcommand(Command::new("build")

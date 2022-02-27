@@ -36,7 +36,8 @@ fn is_http(buf : &[u8], num_bytes : usize) -> bool{
 async fn acceptor(listener: Box<TcpListener>, cfg : ServerCfg) {
     loop {
         match listener.accept().await {
-            Ok((stream, _paddr)) => {
+            Ok((stream, paddr)) => {
+                let source_ip = paddr.ip();
                 //println!("New connection lets peek");
                 let mut buf = [0; 4];
                 let num_bytes : usize;
@@ -55,19 +56,19 @@ async fn acceptor(listener: Box<TcpListener>, cfg : ServerCfg) {
                     Err(_e) => 0,
                 };
                 if is_ldap(&buf, num_bytes) {
-                    println!("Port {} | From {} | LDAP", &cfg.port, _paddr);
+                    println!("Port={},From={},LDAP", &cfg.port, source_ip);
                     tokio::spawn(ldap_server::handle_client(stream, cfg.clone()));
                 } else if is_http(&buf, num_bytes){
-                    println!("Port {} | From {} | HTTP", &cfg.port, _paddr);
+                    println!("Port={},From={},HTTP", &cfg.port, source_ip);
                     tokio::spawn(web_server::process_http(stream, cfg.clone()));
                 } else {
                     match &cfg.proxxy_addr {
                         Some(addr) =>{
-                            println!("Port {} | From {} | Proxy {}", &cfg.port, _paddr, &addr);
+                            println!("Port={},From={},Proxy={}", &cfg.port, source_ip, &addr);
                             tokio::spawn(tcp_proxy::proxy(stream, addr.clone(), cfg.port));
                         }
                         _ => {
-                            eprintln!("Not an HTTP or LDAP request on port {} from {} and no proxy configured", &cfg.port, _paddr);
+                            eprintln!("Not an HTTP or LDAP request on port {} from {} and no proxy configured", &cfg.port, source_ip);
                         },
                     }
                 }
@@ -102,12 +103,16 @@ pub async fn run_multiplexed_servers(rsc : RunServerCfg) {
             },
         }
     }
-    println!("==================");
-    println!("We failed to start on these ports ({})", failed.join(","));
-    println!("==================");
-    println!("We started servers on these ports ({})", opened.join(","));
-    println!("==================");
-    println!("Running");
+    if !failed.is_empty() {
+        println!("==================");
+        println!("We failed to start on these ports : {}", failed.join(","));
+        println!("==================");
+    }
+    if opened.is_empty() {
+        panic!("Error no ports opened, Shutting down!");
+    }
+    println!("Running servers on : {}", opened.join(","));
+    println!("");
     try_write(rsc.ports_file_name, &opened);
     try_write(rsc.failed_file_name, &failed);
     if !opened.is_empty() { futures::future::join_all(tasks).await; }
