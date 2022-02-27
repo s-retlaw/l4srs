@@ -138,9 +138,9 @@ fn parse_port_entry(s : &str) -> Vec<u16>{
             let l : u16 = parts[0].parse().expect(&format!("Error parsing port {} from entry {} in --ports (-p) arg", parts[0], s)); 
             let h : u16 = parts[1].parse().expect(&format!("Error parsing port {} from entry {} in --ports (-p) arg", parts[1], s)); 
             if l >= h {
-                println!("****************");
-                println!("WARNING : port range upper value is less than or equal lower value {} from ports (-p) arg", s);
-                println!("****************");
+                eprintln!("****************");
+                eprintln!("WARNING : port range upper value is less than or equal lower value {} from ports (-p) arg", s);
+               eprintln!("****************");
             }
             (l..=h).collect()
         },

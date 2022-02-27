@@ -1,9 +1,6 @@
 use futures::SinkExt;
 use futures::StreamExt;
 use std::convert::TryFrom;
-//use std::net;
-//use std::str::FromStr;
-//use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio_util::codec::{FramedRead, FramedWrite};
 use crate::build_java;
@@ -41,18 +38,18 @@ impl LdapSession {
             let name_parts : Vec<&str> = vec![&parts[0], &addr_str, &parts[2]]; 
             name = name_parts.join("_").to_string();
             match build_java::ensure_mm_class_exists(&self.cfg.web_root, &name,  &parts[1], parts[2]) {
-                Err(e) => println!("Error creating MM class {}", e),
+                Err(e) => eprintln!("Error creating MM class {}", e),
                 _ => (),
             }
       }
-        println!("the base is {}", name);
+        //println!("the base is {}", name);
         vec![
             lsr.gen_result_entry(LdapSearchResultEntry {
                 dn: "cn=hello,dc=example,dc=com".to_string(),
                 attributes: vec![
                     LdapPartialAttribute {
                         atype: "javaClassName".to_string(),
-                        vals: vec!["TheClass".to_string()],
+                        vals: vec![name.clone()],
                     },
                     LdapPartialAttribute {
                         atype: "objectClass".to_string(),
@@ -127,26 +124,3 @@ pub async fn handle_client(socket: TcpStream, cfg : ServerCfg) {
     }
     // Client disconnected
 }
-
-//async fn acceptor(listener: Box<TcpListener>, cfg : ServerCfg) {
-//    loop {
-//        match listener.accept().await {
-//            Ok((socket, _paddr)) => {
-//                tokio::spawn(handle_client(socket, cfg.clone()));
-//            }
-//            Err(_e) => {
-//                //pass
-//            }
-//        }
-//    }
-//}
-
-//pub async fn start_ldap_server(cfg : ServerCfg){
-//    let addr = net::SocketAddr::from_str(&format!("0.0.0.0:{}", cfg.port)).unwrap();
-//    let listener = Box::new(TcpListener::bind(&addr).await.unwrap());
-//    // Initiate the acceptor task.
-//    println!("startng ldap://0.0.0.0:{} ...", cfg.port);
-//    tokio::spawn(acceptor(listener, cfg.clone()));
-//}
-
-

@@ -11,6 +11,5 @@ pub async fn process_http(s : TcpStream, cfg : ServerCfg){
         .await {
             eprintln!("Error while serving HTTP connection: {}", http_err);
         }
-//    println!("Closing http connection from {}", &cfg.port);
 }
 

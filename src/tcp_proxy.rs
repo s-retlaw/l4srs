@@ -8,7 +8,7 @@ pub async fn proxy(mut client: TcpStream, server_addr: String, port : u16){
     let mut server = match TcpStream::connect(&server_addr).await{
         Ok(s) => s,
         Err(e) => {
-            println!("Error connecting to proxy {} : {}", &server_addr, e);
+            eprintln!("Error connecting to proxy {} : {}", &server_addr, e);
             return ;
         }
     };
@@ -28,10 +28,10 @@ pub async fn proxy(mut client: TcpStream, server_addr: String, port : u16){
 
     match tokio::try_join!(client_to_server, server_to_client){
         Ok(_) => {
-            println!("Closing proxy from port {}", port);
+            eprintln!("Closing proxy from port {}", port);
         },
         Err(e) => {
-            println!("Error with proxy from port {} : {}", port, e);
+            eprintln!("Error with proxy from port {} : {}", port, e);
         },
     }
 }

@@ -12,23 +12,23 @@ use std::fs::File;
 use std::io::Write;
 
 fn is_ldap(buf : &[u8], num_bytes : usize) -> bool{
-    if num_bytes < 3 {return false;}
+    if num_bytes < 4 {return false;}
     
-    return buf == [48, 12, 2]; //, 1, 1];
+    return buf == [48, 12, 2, 1]; //, 1];
 }
 
 fn is_http(buf : &[u8], num_bytes : usize) -> bool{
-    if num_bytes < 3 {return false;}
+    if num_bytes < 4 {return false;}
 
     let peek = String::from_utf8_lossy(&buf).to_string();
 
     match peek.as_str() {
-        "GET" => true,
-        "POS" => true,
-        "HEA" => true,
-        "PAT" => true,
-        "OPT" => true,
-        "PUT" => true,
+        "GET " => true,
+        "POST" => true,
+        "HEAD" => true,
+        "PATC" => true,
+        "OPTI" => true,
+        "PUT " => true,
         _ => false,
     }
 }
@@ -37,8 +37,8 @@ async fn acceptor(listener: Box<TcpListener>, cfg : ServerCfg) {
     loop {
         match listener.accept().await {
             Ok((stream, _paddr)) => {
-                println!("New connection lets peek");
-                let mut buf = [0; 3];
+                //println!("New connection lets peek");
+                let mut buf = [0; 4];
                 let num_bytes : usize;
 
                 let peek_result = timeout(Duration::from_millis(100), stream.peek(&mut buf)).await;
@@ -47,7 +47,7 @@ async fn acceptor(listener: Box<TcpListener>, cfg : ServerCfg) {
                         match r {
                             Ok(b) => b,
                             Err(_e) => {
-                                println!("Error peeking for port {} : {}", &cfg.port, _e);
+                                eprintln!("Error peeking for port {} : {}", &cfg.port, _e);
                                 continue;
                             },
                         }
@@ -55,25 +55,25 @@ async fn acceptor(listener: Box<TcpListener>, cfg : ServerCfg) {
                     Err(_e) => 0,
                 };
                 if is_ldap(&buf, num_bytes) {
-                    println!("LDAP request on port {} from {}", &cfg.port, _paddr);
+                    println!("Port {} | From {} | LDAP", &cfg.port, _paddr);
                     tokio::spawn(ldap_server::handle_client(stream, cfg.clone()));
                 } else if is_http(&buf, num_bytes){
-                    println!("HTTP request on port {} from {}", &cfg.port, _paddr);
+                    println!("Port {} | From {} | HTTP", &cfg.port, _paddr);
                     tokio::spawn(web_server::process_http(stream, cfg.clone()));
                 } else {
                     match &cfg.proxxy_addr {
                         Some(addr) =>{
-                            println!("Attempting to connect to proxy {}", &addr);
+                            println!("Port {} | From {} | Proxy {}", &cfg.port, _paddr, &addr);
                             tokio::spawn(tcp_proxy::proxy(stream, addr.clone(), cfg.port));
                         }
                         _ => {
-                            println!("Not an HTTP or LDAP request on port {} from {} and no proxy configured", &cfg.port, _paddr);
+                            eprintln!("Not an HTTP or LDAP request on port {} from {} and no proxy configured", &cfg.port, _paddr);
                         },
                     }
                 }
             }
             Err(e) => {
-                println!("Error with listener on port {} : {}", &cfg.port, e);
+                eprintln!("Error with listener on port {} : {}", &cfg.port, e);
             }
         }
     }
@@ -98,7 +98,7 @@ pub async fn run_multiplexed_servers(rsc : RunServerCfg) {
             },
             Err(e) => {
                 failed.push(cfg.port.to_string());
-                println!("Error opening port {} : {}", port, e);
+                eprintln!("Error opening port {} : {}", port, e);
             },
         }
     }
@@ -107,6 +107,7 @@ pub async fn run_multiplexed_servers(rsc : RunServerCfg) {
     println!("==================");
     println!("We started servers on these ports ({})", opened.join(","));
     println!("==================");
+    println!("Running");
     try_write(rsc.ports_file_name, &opened);
     try_write(rsc.failed_file_name, &failed);
     if !opened.is_empty() { futures::future::join_all(tasks).await; }

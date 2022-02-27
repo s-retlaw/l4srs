@@ -9,12 +9,12 @@ use crate::common::BuildCmdCfg;
 pub fn does_program_exist(name : &str) -> bool{
     match Command::new(name).arg("--version").output() {
         Err(_) => {
-            println!("We could not find {}", name);
+            eprintln!("We could not find {}", name);
             return false;
         },
         Ok(j) => {
-            let s : String = String::from_utf8(j.stdout).unwrap();
-            println!("we found {} : {}", name, s);
+            let _s : String = String::from_utf8(j.stdout).unwrap();
+            //println!("we found {} : {}", name, s);
             return true;
         }
     }
@@ -26,10 +26,10 @@ pub fn is_javac_installed() -> bool{
 
 fn compile_java(java_file_path : &Path) -> bool {
     let java_file_name = java_file_path.to_str().expect("Bad build path");
-    println!("attempting to build {}", java_file_name);
+    //println!("attempting to build {}", java_file_name);
     match Command::new("javac").arg(java_file_name).output() {
         Err(e) => {
-            println!("Unable to compile {} : {}", java_file_name, e);
+            eprintln!("Unable to compile {} : {}", java_file_name, e);
             return false;
         },
         _ => return true,
