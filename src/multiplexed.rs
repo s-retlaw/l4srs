@@ -56,15 +56,15 @@ async fn acceptor(listener: Box<TcpListener>, cfg : ServerCfg) {
                     Err(_e) => 0,
                 };
                 if is_ldap(&buf, num_bytes) {
-                    println!("Port={},From={},LDAP", &cfg.port, source_ip);
+                    println!("{{\"port\":{},\"from\":\"{}\",\"proto\":\"LDAP\"}}", &cfg.port, source_ip);
                     tokio::spawn(ldap_server::handle_client(stream, cfg.clone()));
                 } else if is_http(&buf, num_bytes){
-                    println!("Port={},From={},HTTP", &cfg.port, source_ip);
+                    println!("{{\"port\":{},\"from\":\"{}\",\"proto\":\"HTTP\"}}", &cfg.port, source_ip);
                     tokio::spawn(web_server::process_http(stream, cfg.clone()));
                 } else {
                     match &cfg.proxxy_addr {
                         Some(addr) =>{
-                            println!("Port={},From={},Proxy={}", &cfg.port, source_ip, &addr);
+                            println!("{{\"port\":{},\"from\":\"{}\",\"proto\":\"PROXY\"}}", &cfg.port, source_ip);
                             tokio::spawn(tcp_proxy::proxy(stream, addr.clone(), cfg.port));
                         }
                         _ => {
