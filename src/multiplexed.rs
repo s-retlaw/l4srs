@@ -104,14 +104,14 @@ pub async fn run_multiplexed_servers(rsc : RunServerCfg) {
         }
     }
     if !failed.is_empty() {
-        println!("==================");
-        println!("We failed to start on these ports : {}", failed.join(","));
-        println!("==================");
+        eprintln!("==================");
+        eprintln!("We failed to start on these ports : {}", failed.join(","));
+        eprintln!("==================");
     }
     if opened.is_empty() {
         panic!("Error no ports opened, Shutting down!");
     }
-    println!("Running servers on : {}", opened.join(","));
+    println!("Running on : {}", opened.join(","));
     println!("");
     try_write(rsc.ports_file_name, &opened);
     try_write(rsc.failed_file_name, &failed);

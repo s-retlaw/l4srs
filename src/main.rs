@@ -216,7 +216,7 @@ fn convert_args_for_run_server_cfg(m : &ArgMatches) -> RunServerCfg{
 async fn run_servers(rsc: RunServerCfg) -> () {
     fs::create_dir_all(&rsc.web_root)
         .expect(&format!("Unable to create {} dir", rsc.web_root));    
-    println!("We will send the JNDI requests the base address of http://{}", &rsc.addr);
+    println!("Address base : {}", &rsc.addr);
     multiplexed::run_multiplexed_servers(rsc).await;
 }
 
