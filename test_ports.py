@@ -26,6 +26,7 @@ def send_requests(ports, cmd_line):
         cl = list(map(lambda s: f'{s}', cmd_line))
         cl = list(map(lambda s: s.replace("$PORT$", port), cl))
         try:
+            print(f'About to run : {cl}')
             subprocess.run(cl, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL, timeout=2)
             time.sleep(1000)
         except Exception:
