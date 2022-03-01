@@ -26,12 +26,12 @@ def send_requests(ports, cmd_line):
         cl = list(map(lambda s: f'{s}', cmd_line))
         cl = list(map(lambda s: s.replace("$PORT$", port), cl))
         try:
-            subprocess.run(cl, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+            subprocess.run(cl, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL, timeout=2)
             time.sleep(1000)
         except Exception:
             print("timedout...")
-
     print("tried all ports....sleeping 5 seconds")
+    time.sleep(5000)
     exit()
 
 def run(cmd_line):
