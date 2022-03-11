@@ -89,14 +89,12 @@ async fn main() -> () {
 
     if let Some(m) = matches.subcommand_matches("build"){
         let cfg : BuildCmdCfg = convert_args_for_build_cmd(m);
-        build_java::is_javac_installed();
         fs::create_dir_all(&cfg.build_path)
             .expect(&format!("Unable to create {} dir", cfg.build_path));    
 
         build_java::build_exec_cmd_class(cfg).expect("faild to build cmd");
     } else if let Some(m) = matches.subcommand_matches("run"){
         let cfgs = convert_args_for_run_server_cfg(m);
-        build_java::is_javac_installed();
         run_servers(cfgs).await;
     }
 }
