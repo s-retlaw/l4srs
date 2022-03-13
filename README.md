@@ -17,5 +17,5 @@ another machine.
 
 This version no longer requires javac to be installed.  It still
 allows for dynamic "class building" but does so by altering 
-precompiled classes embeded in the executable"
+precompiled classes embeded in the executable.
 
