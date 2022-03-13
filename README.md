@@ -14,3 +14,8 @@ to another machine, again on the same port.  If the target machine
 has only one egress port you can server LDAP, HTTP and use the same
 port to proxy the meterpreter connection to another local port or
 another machine.
+
+This version no longer requires javac to be installed.  It still
+allows for dynamic "class building" but does so by altering 
+precompiled classes embeded in the executable"
+
