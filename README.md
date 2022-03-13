@@ -15,9 +15,9 @@ has only one egress port you can server LDAP, HTTP and use the same
 port to proxy the meterpreter connection to another local port or
 another machine.
 
-This version no longer requires javac to be installed.  It still
+**This version no longer requires javac to be installed.  It still
 allows for dynamic "class building" but does so by altering 
-precompiled classes embeded in the executable.
+precompiled classes embeded in the executable.**
 
 This version adds the top 100 and top 1000 ports as defined by nmap.
 use the --pC100 or the --pC1000 options.
