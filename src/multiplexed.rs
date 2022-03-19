@@ -90,6 +90,7 @@ pub async fn run_multiplexed_servers(rsc : RunServerCfg) {
             addr : rsc.addr.clone(),
             web_root : rsc.web_root.clone(),
             proxxy_addr : rsc.proxy_addr.clone(),
+            class_cache : rsc.class_cache.clone(),
         };
         let addr = net::SocketAddr::from_str(&format!("0.0.0.0:{}", &cfg.port)).unwrap();
         match TcpListener::bind(&addr).await {

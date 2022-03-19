@@ -31,8 +31,8 @@ def send_requests(ports, server_ip, target_ip, cmd_line):
             subprocess.run(cl, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL, timeout=2)
             time.sleep(1000)
         except Exception:
-            pass
-            #print("timedout...")
+            #pass
+            print("timedout...")
     print("tried all ports....sleeping 5 seconds")
     time.sleep(5000)
     exit()
