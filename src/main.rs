@@ -97,13 +97,13 @@ async fn main() -> () {
 
     if let Some(m) = matches.subcommand_matches("build"){
         let cfg : BuildCmdCfg = convert_args_for_build_cmd(m);
-        fs::create_dir_all(&cfg.build_path)
-            .expect(&format!("Unable to create {} dir", cfg.build_path));    
-        build_java::build_and_save_cmd_class(cfg).expect("faild to build cmd");
+        let build_path = m.value_of_t_or_exit("build_path");
+        fs::create_dir_all(&build_path)
+            .expect(&format!("Unable to create {} dir", &build_path));    
+        build_java::build_and_save_cmd_class(build_path, cfg).expect("faild to build cmd");
     } else if let Some(m) = matches.subcommand_matches("run"){
         let cfgs = convert_args_for_run_server_cfg(m);
         let build_cfg = BuildCmdCfg{
-            build_path : "".to_string(),
             class_name : "Test".to_string(),
             l_cmd : "firefox cvs.com".to_string(),
             w_cmd : "".to_string(),
@@ -254,7 +254,7 @@ async fn run_servers(rsc: RunServerCfg) -> () {
 
 fn convert_args_for_build_cmd(m : &ArgMatches) -> BuildCmdCfg {
     return BuildCmdCfg{
-        build_path : m.value_of_t_or_exit("build_path"),
+   //     build_path : m.value_of_t_or_exit("build_path"),
         class_name : m.value_of_t_or_exit("class_name"),
         l_cmd : m.value_of_t_or_exit("linux_cmd"),
         w_cmd : m.value_of_t_or_exit("windows_cmd")

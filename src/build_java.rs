@@ -74,8 +74,8 @@ pub fn build_mm_class(class_name : &str, msf_host : &str, msf_port : &str) -> Re
     Ok(the_class)
 }
 
-pub fn build_and_save_cmd_class(cfg : BuildCmdCfg) -> Result<(), Box<dyn Error>>{
-    let class_path= Path::new(&cfg.build_path).join(format!("{}.class", &cfg.class_name));
+pub fn build_and_save_cmd_class(build_path : String, cfg : BuildCmdCfg) -> Result<(), Box<dyn Error>>{
+    let class_path= Path::new(&build_path).join(format!("{}.class", &cfg.class_name));
     let the_class = build_cmd_class(cfg)?;
     let mut file = File::create(&class_path)?;
     file.write(&the_class)?;

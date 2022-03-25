@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
 pub struct ClassCache{
@@ -13,9 +14,9 @@ impl ClassCache{
         }
     }
 
-    pub fn get_class(&self, class_name : String)->Option<Vec<u8>>{
+    pub fn get_class(&self, class_name : &String)->Option<Vec<u8>>{
         let cache = self.cache.lock().unwrap();
-        match cache.get(&class_name) {
+        match cache.get(class_name) {
             Some(c) => Some(c.clone()),
             None => None
         }
@@ -48,9 +49,8 @@ pub struct ServerCfg{
     pub class_cache : ClassCache,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildCmdCfg{
-    pub build_path : String,
     pub class_name : String,
     pub l_cmd : String,
     pub w_cmd : String,
