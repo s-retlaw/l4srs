@@ -3,7 +3,7 @@ use futures::StreamExt;
 use std::convert::TryFrom;
 use tokio::net::TcpStream;
 use tokio_util::codec::{FramedRead, FramedWrite};
-use crate::build_java;
+//use crate::build_java;
 use ldap3_proto::simple::*;
 use ldap3_proto::LdapCodec;
 
@@ -37,10 +37,10 @@ impl LdapSession {
             let addr_str = parts[1].replace(".", "_");
             let name_parts : Vec<&str> = vec![&parts[0], &addr_str, &parts[2]]; 
             name = name_parts.join("_").to_string();
-            match build_java::ensure_mm_class_exists(&self.cfg.web_root, &name,  &parts[1], parts[2]) {
-                Err(e) => eprintln!("Error creating MM class {}", e),
-                _ => (),
-            }
+            //match build_java::ensure_mm_class_exists(&self.cfg.web_root, &name,  &parts[1], parts[2]) {
+            //    Err(e) => eprintln!("Error creating MM class {}", e),
+            //    _ => (),
+            //}
       }
         //println!("the base is {}", name);
         vec![

