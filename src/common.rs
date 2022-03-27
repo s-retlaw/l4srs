@@ -52,7 +52,7 @@ pub struct ServerCfg{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildCmdCfg{
     pub class_name : String,
-    pub l_cmd : String,
-    pub w_cmd : String,
+    pub l_cmd : Option<String>,
+    pub w_cmd : Option<String>,
 }
 

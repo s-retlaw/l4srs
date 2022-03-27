@@ -89,8 +89,8 @@ pub fn build_cmd_class(cfg : BuildCmdCfg) -> Vec<u8> {
     let replacements = vec![
         StrReplacement::new("BuildCmd", &cfg.class_name),
         StrReplacement::new("BuildCmd.java", &format!("{}.java", &cfg.class_name)),
-        StrReplacement::new("WWWWW", &cfg.w_cmd),
-        StrReplacement::new("LLLLL", &cfg.l_cmd),
+        StrReplacement::new("WWWWW", &cfg.w_cmd.unwrap_or_default()),
+        StrReplacement::new("LLLLL", &cfg.l_cmd.unwrap_or_default()),
     ];
 
     let the_class = replace_byte_seq(&CMD_CLASS, &replacements);

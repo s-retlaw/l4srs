@@ -103,13 +103,13 @@ async fn main() -> () {
         build_java::build_and_save_cmd_class(build_path, cfg).expect("faild to build cmd");
     } else if let Some(m) = matches.subcommand_matches("run"){
         let cfgs = convert_args_for_run_server_cfg(m);
-        let build_cfg = BuildCmdCfg{
-            class_name : "Test".to_string(),
-            l_cmd : "firefox cvs.com".to_string(),
-            w_cmd : "".to_string(),
-        };
-        let the_class = build_java::build_cmd_class(build_cfg);
-        cfgs.class_cache.set_class("Test.class".to_string(),the_class);
+//        let build_cfg = BuildCmdCfg{
+//            class_name : "Test".to_string(),
+//            l_cmd : Some("firefox cvs.com".to_string()),
+//            w_cmd : Some("".to_string()),
+//        };
+//        let the_class = build_java::build_cmd_class(build_cfg);
+//        cfgs.class_cache.set_class("Test.class".to_string(),the_class);
         run_servers(cfgs).await;
     } 
 }
@@ -246,7 +246,7 @@ fn convert_args_for_run_server_cfg(m : &ArgMatches) -> RunServerCfg{
 async fn run_servers(rsc: RunServerCfg) -> () {
 //    fs::create_dir_all(&rsc.web_root)
 //        .expect(&format!("Unable to create {} dir", rsc.web_root));    
-//    println!("Address base : {}", &rsc.addr);
+    println!("Address base : {}", &rsc.addr);
     multiplexed::run_multiplexed_servers(rsc).await;
 }
 
@@ -254,7 +254,7 @@ fn convert_args_for_build_cmd(m : &ArgMatches) -> BuildCmdCfg {
     return BuildCmdCfg{
    //     build_path : m.value_of_t_or_exit("build_path"),
         class_name : m.value_of_t_or_exit("class_name"),
-        l_cmd : m.value_of_t_or_exit("linux_cmd"),
-        w_cmd : m.value_of_t_or_exit("windows_cmd")
+        l_cmd : Some(m.value_of_t_or_exit("linux_cmd")),
+        w_cmd : Some(m.value_of_t_or_exit("windows_cmd"))
     }
 }
