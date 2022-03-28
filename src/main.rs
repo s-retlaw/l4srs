@@ -92,7 +92,11 @@ async fn main() -> () {
                 .long("wwwroot")
                 .default_value("wwwroot")
                 .takes_value(true)
-                .help("The dir to serve the payloads from.  Will create if it doesn't exist.  Note this should be the same build_path you used for any build_cmd classes.  You can also put in any other classes into this dir.")
+                .help("The dir to serve the payloads from.  Will create if it doesn't exist.  Note this should be the same build_path you used for any build_cmd classes.  You can also put in any other classes into this dir."))
+            .arg(Arg::new("allow_cmd")
+                .long("allow_cmd")
+                .takes_value(false)
+                .help("Allow build_cmd post end point")
             )).get_matches();
 
     if let Some(m) = matches.subcommand_matches("build"){
@@ -240,6 +244,7 @@ fn convert_args_for_run_server_cfg(m : &ArgMatches) -> RunServerCfg{
         failed_file_name : convert_option(m.value_of("Of")),
         proxy_addr : convert_option(m.value_of("proxy")),
         class_cache : ClassCache::new(),
+        allow_build_cmd : m.is_present("allow_cmd"),
     }
 }
 

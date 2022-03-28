@@ -35,7 +35,14 @@ impl WebService{
            (&Method::GET, "/echo") => Ok(Response::new(Body::from(
                         "try echo with a post",
             ))),
-           (&Method::POST, "/build_cmd") => self.build_cmd(req).await, 
+           (&Method::POST, "/build_cmd") => {
+               if self.cfg.allow_build_cmd {
+                   return self.build_cmd(req).await;
+               }else {
+                   return self.not_found().await;
+               }
+           }
+
            //(&Method::GET, p) if p.starts_with("/MM_")  => self.build_mm(req).await, 
             
             _ => {  
