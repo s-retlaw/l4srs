@@ -37,9 +37,9 @@ impl WebService{
             ))),
            (&Method::POST, "/build_cmd") => {
                if self.cfg.allow_build_cmd {
-                   return self.build_cmd(req).await;
+                   self.build_cmd(req).await
                }else {
-                   return self.not_found().await;
+                   self.not_found().await
                }
            }
 
@@ -56,9 +56,13 @@ impl WebService{
                         if path.starts_with("MM_") {
                             self.process_mm(req).await
                         }else{
-                            match self.file_server.serve(req).await {
-                                Ok(r) => Ok(r),
-                                Err(ioe) => Err(ioe.into())
+                            if self.cfg.no_fs {
+                                self.not_found().await
+                            }else{
+                                match self.file_server.serve(req).await {
+                                    Ok(r) => Ok(r),
+                                    Err(ioe) => Err(ioe.into())
+                                }
                             }
                         }
                     }

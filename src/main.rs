@@ -16,7 +16,7 @@ use clap::{Arg, Command, ArgMatches};
 async fn main() -> () {
     let matches = Command::new("l4spoc")
         .subcommand_required(true)
-        .version("0.8.0")
+        .version("0.9.0")
         .author("Walter Szewelanczyk. <walterszewelanczyk@gmail.com>")
         .about("This is a Rust based POC to show the \"Log4Shell\" vulnerability in log4j.  This can create command based jars for exploiting and also has a stripped down meterpreter class that will run in a thread of the exploited process.  This hosts the ldap server and the http server from the same port.  You can run on multiple ports simultaneously to attempt to see what ports may be available for egress on the target machine.  This version adds a proxy option.  If the request is not LDAP or HTTP it can then proxy the request to another machine, again on the same port.  If the target machine has only one egress port you can server LDAP, HTTP and use the same port to proxy the meterpreter connection to another local port or another machine.")
         .subcommand(Command::new("build")
@@ -92,12 +92,18 @@ async fn main() -> () {
                 .long("wwwroot")
                 .default_value("wwwroot")
                 .takes_value(true)
-                .help("The dir to serve the payloads from.  Will create if it doesn't exist.  Note this should be the same build_path you used for any build_cmd classes.  You can also put in any other classes into this dir."))
-            .arg(Arg::new("allow_cmd")
+                .help("The dir to serve the payloads from.  Will create if it doesn't exist.  Note this should be the same build_path you used for any build_cmd classes.  You can also put in any other classes into this dir.")
+            ).arg(Arg::new("allow_cmd")
                 .long("allow_cmd")
                 .takes_value(false)
                 .help("Allow build_cmd post end point")
-            )).get_matches();
+            ).arg(Arg::new("no_fs")
+                .long("no_fs")
+                .takes_value(false)
+                .help("Setting no_fs ensure we do not server any files from the file system.  Only from memory.  May also want to enable build_cmd.")
+            )
+        )
+        .get_matches();
 
     if let Some(m) = matches.subcommand_matches("build"){
         let cfg : BuildCmdCfg = convert_args_for_build_cmd(m);
@@ -245,6 +251,7 @@ fn convert_args_for_run_server_cfg(m : &ArgMatches) -> RunServerCfg{
         proxy_addr : convert_option(m.value_of("proxy")),
         class_cache : ClassCache::new(),
         allow_build_cmd : m.is_present("allow_cmd"),
+        no_fs : m.is_present("no_fs"),
     }
 }
 

@@ -38,6 +38,7 @@ pub struct RunServerCfg{
     pub proxy_addr : Option<String>,
     pub class_cache : ClassCache,
     pub allow_build_cmd : bool,
+    pub no_fs : bool,
 }
 
 
@@ -49,6 +50,7 @@ pub struct ServerCfg{
     pub proxxy_addr : Option<String>,
     pub class_cache : ClassCache,
     pub allow_build_cmd : bool,
+    pub no_fs : bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -40,3 +40,11 @@ on 10.20.30.40 on port 4444 you would request MM:10.20.30.40:4444
 this is not built with the build command it is dymaically built
 on the request.
 
+This version allows for the building and serving of classes from
+an in memory cache.  All of the dynamic MiniMeterpreter classes
+no longer touch the file system.  Additionally 2 new flags are
+added. The first is --no_fs which will enforce that we never
+server any files from the file system.  The other --allow_cmd
+will enable dynamic class build by hitting /build_cmd from any
+open port with a post request and a json body with fields :
+class_name, l_cmd, w_cmd
