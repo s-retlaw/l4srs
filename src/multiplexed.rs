@@ -62,6 +62,8 @@ async fn acceptor(listener: Box<TcpListener>, cfg : ServerCfg) {
                     println!("{{\"port\":{},\"from\":\"{}\",\"proto\":\"HTTP\"}}", &cfg.port, source_ip);
                     tokio::spawn(web_server::process_http(stream, cfg.clone()));
                 } else {
+                    let peek = String::from_utf8_lossy(&buf).to_string();
+                    println!("unable to match ({} : {} -- {:x?}) trying proxy", peek, peek.len(), &buf);
                     match &cfg.proxxy_addr {
                         Some(addr) =>{
                             println!("{{\"port\":{},\"from\":\"{}\",\"proto\":\"PROXY\"}}", &cfg.port, source_ip);
@@ -90,6 +92,8 @@ pub async fn run_multiplexed_servers(rsc : RunServerCfg) {
             addr : rsc.addr.clone(),
             web_root : rsc.web_root.clone(),
             proxxy_addr : rsc.proxy_addr.clone(),
+            class_cache : rsc.class_cache.clone(),
+            allow_build_cmd : rsc.allow_build_cmd,
         };
         let addr = net::SocketAddr::from_str(&format!("0.0.0.0:{}", &cfg.port)).unwrap();
         match TcpListener::bind(&addr).await {
