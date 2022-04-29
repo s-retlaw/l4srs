@@ -20,7 +20,7 @@ struct WebService{
 impl WebService{
     pub fn new(cfg: ServerCfg)->WebService{
         WebService{
-            file_server : hyper_staticfile::Static::new(&cfg.web_root), 
+            file_server : hyper_staticfile::Static::new(&cfg.rsc.web_root), 
             cfg,
         }
     }
@@ -29,34 +29,40 @@ impl WebService{
         println!("We have  request {} : {}", req.method(), req.uri().path());
         match (req.method(), req.uri().path()) {
             // Serve some instructions at /
-            (&Method::GET, "/") => Ok(Response::new(Body::from(
-                        "Hello there, try /echo",
+//            (&Method::GET, "/") => Ok(Response::new(Body::from(
+//                        "Hello there, try /echo",
+//            ))),
+//           (&Method::GET, "/echo") => Ok(Response::new(Body::from(
+//                        "try echo with a post",
+//            ))),
+            (&Method::GET, "/admin/server_cfg") => Ok(Response::new(Body::from(
+                json!({"addr":self.cfg.rsc.addr
+                    , "open_ports":self.cfg.caches.get_open_ports()
+                    , "failed_ports":self.cfg.caches.get_failed_ports()
+                }).to_string(),
             ))),
-           (&Method::GET, "/echo") => Ok(Response::new(Body::from(
-                        "try echo with a post",
+            (&Method::POST, "/admin/build_cmd") => {
+                if self.cfg.rsc.allow_build_cmd {
+                    self.build_cmd(req).await
+                }else {
+                    self.not_found().await
+                }
+            }
+            (&Method::GET, "/admin/next_id") => Ok(Response::new(Body::from(
+                self.cfg.caches.get_next_id()
             ))),
-           (&Method::POST, "/build_cmd") => {
-               if self.cfg.allow_build_cmd {
-                   self.build_cmd(req).await
-               }else {
-                   self.not_found().await
-               }
-           }
-
-           //(&Method::GET, p) if p.starts_with("/MM_")  => self.build_mm(req).await, 
-            
             _ => {  
                 let path = req.uri().path()[1..].to_string();
-                match self.cfg.class_cache.get_class(&path) {
+                match self.cfg.caches.get_class(&path) {
                     Some(the_class) => {
-                        println!("we have a cache match");
+//                        println!("we have a cache match");
                         Ok(Response::new(Body::from(the_class)))
                     },
                     None => {
                         if path.starts_with("MM_") {
                             self.process_mm(req).await
                         }else{
-                            if self.cfg.no_fs {
+                            if self.cfg.rsc.no_fs {
                                 self.not_found().await
                             }else{
                                 match self.file_server.serve(req).await {
@@ -98,7 +104,7 @@ impl WebService{
         println!("we are processing a MM");
         let host = &parts[1..last].join(".");
         let the_class = build_java::build_mm_class(&class_name, &host, &port);
-        self.cfg.class_cache.set_class(class_name.to_string(), the_class.clone());
+        self.cfg.caches.set_class(class_name.to_string(), the_class.clone());
         Ok(Response::new(Body::from(the_class)))
     }
 
@@ -107,7 +113,7 @@ impl WebService{
         let build_cmd = serde_json::from_str::<BuildCmdCfg>(&body).context("Error parsing json")?;
         let the_class = build_java::build_cmd_class(build_cmd.clone());
         let class_name = format!("{}.class", build_cmd.class_name);
-        self.cfg.class_cache.set_class(class_name, the_class);
+        self.cfg.caches.set_class(class_name, the_class);
         return Ok(Response::new(Body::from(format!("Created new class for {:?} -- \n\n\n", build_cmd))));
     }
 }

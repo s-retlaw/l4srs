@@ -57,7 +57,7 @@ impl LdapSession {
                     },
                     LdapPartialAttribute {
                         atype: "javaCodeBase".to_string(),
-                        vals: vec![format!("http://{}:{}/", self.cfg.addr, self.cfg.port)],
+                        vals: vec![format!("http://{}:{}/", self.cfg.rsc.addr, self.cfg.port)],
                     },
                     LdapPartialAttribute {
                         atype: "javaFactory".to_string(),
