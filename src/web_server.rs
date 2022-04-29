@@ -28,17 +28,18 @@ impl WebService{
     pub async fn serve(self, req: Request<Body>) -> Result<Response<Body>, anyhow::Error> {
         println!("We have  request {} : {}", req.method(), req.uri().path());
         match (req.method(), req.uri().path()) {
-            // Serve some instructions at /
-//            (&Method::GET, "/") => Ok(Response::new(Body::from(
-//                        "Hello there, try /echo",
-//            ))),
-//           (&Method::GET, "/echo") => Ok(Response::new(Body::from(
-//                        "try echo with a post",
-//            ))),
+            (&Method::GET, p)  if p.starts_with("/admin/id_access/")  => {
+                let id = p[17..].to_string();
+                match serde_json::to_string(&self.cfg.caches.get_access_for_id(&id))
+                    .context(format!("Error converting json for id ({})", id)){
+                        Ok(js) =>  Ok(Response::new(Body::from(js))),
+                        Err(e) => Err(e.into()),
+                    }
+            },
             (&Method::GET, "/admin/server_cfg") => Ok(Response::new(Body::from(
-                json!({"addr":self.cfg.rsc.addr
-                    , "open_ports":self.cfg.caches.get_open_ports()
-                    , "failed_ports":self.cfg.caches.get_failed_ports()
+                        json!({"addr":self.cfg.rsc.addr
+                            , "open_ports":self.cfg.caches.get_open_ports()
+                                , "failed_ports":self.cfg.caches.get_failed_ports()
                 }).to_string(),
             ))),
             (&Method::POST, "/admin/build_cmd") => {
@@ -51,6 +52,12 @@ impl WebService{
             (&Method::GET, "/admin/next_id") => Ok(Response::new(Body::from(
                 self.cfg.caches.get_next_id()
             ))),
+            (&Method::GET, "/admin/all_id_access") => {
+                match self.cfg.caches.get_all_id_access_as_json(){
+                    Ok(js) =>  Ok(Response::new(Body::from(js))),
+                    Err(e) => Err(e.into()),
+                }
+            }
             _ => {  
                 let path = req.uri().path()[1..].to_string();
                 match self.cfg.caches.get_class(&path) {

@@ -3,48 +3,52 @@ use std::sync::{Arc, Mutex};
 use serde::{Deserialize, Serialize};
 use chrono::prelude::*;
 use uuid::Uuid;
+use std::io;
+use std::net::SocketAddr;
+use anyhow::{Context, Error};
 
-//#[derive(Debug, Clone)]
-//pub struct ClassCache{
-//    cache : Arc<Mutex<HashMap<String, Vec<u8>>>>,
-//}
-//
-//impl ClassCache{
-//    pub fn new() -> ClassCache{
-//        ClassCache{
-//            cache : Arc::new(Mutex::new(HashMap::new())),
-//        }
-//    }
-//
-//    pub fn get_class(&self, class_name : &String)->Option<Vec<u8>>{
-//        let cache = self.cache.lock().unwrap();
-//        match cache.get(class_name) {
-//            Some(c) => Some(c.clone()),
-//            None => None
-//        }
-//    }
-//
-//    pub fn set_class(&self, class_name : String, class_data : Vec<u8>){
-//        let mut cache = self.cache.lock().unwrap();
-//        cache.insert(class_name, class_data);
-//    }
-//}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum AccessType{
     LDAP,
     HTTP,
     PROXY,
-    UNKNOWN
+    UNKNOWN,
+    CALLBACK
 }
 
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Access{
     access_type : AccessType,
     host : String,
     port : u16,
-    time : DateTime<Utc>,
+    time : String,
+}
+
+impl Access{
+    pub fn new(access_type : AccessType, host : String, port : u16) -> Access {
+        Access{
+            access_type,
+            host,
+            port,
+            time : Local::now().to_rfc2822(),
+        }
+    }
+
+    pub fn new_ldap(addr : &io::Result<SocketAddr>, port : u16) -> Access {
+        let host =  match addr {
+            Ok(a) => a.ip().to_string(),
+            Err(e)=> format!("Error getting remote ip : {}", e).to_string(),
+        };
+        Access::new(AccessType::LDAP, host , port)
+    }
+
+    pub fn new_http(host : String, port : u16) -> Access {
+        Access::new(AccessType::HTTP, host, port)
+    }
+    
+    pub fn new_callback(host : String, port : u16) -> Access {
+        Access::new(AccessType::CALLBACK, host, port)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -52,17 +56,16 @@ pub struct Caches{
     class : Arc<Mutex<HashMap<String, Vec<u8>>>>,
     access : Arc<Mutex<Vec<Access>>>,
     id_access : Arc<Mutex<HashMap<String, Vec<Access>>>>,
-    //ids : Arc<Mutex<Uuid>>,
     open_ports : Arc<Mutex<Vec<u16>>>,
     failed_ports : Arc<Mutex<Vec<u16>>>,
 }
+
 impl Caches{
     pub fn new() -> Caches{
         Caches{
             class : Arc::new(Mutex::new(HashMap::new())),
             access : Arc::new(Mutex::new(Vec::new())),
             id_access : Arc::new(Mutex::new(HashMap::new())),
-            //ids : Arc::new(Mutex::new(Uuid::new_v4())),
             open_ports : Arc::new(Mutex::new(Vec::new())),
             failed_ports : Arc::new(Mutex::new(Vec::new())),
         }
@@ -91,11 +94,11 @@ impl Caches{
         cache.push(access);
     }
     
-    pub fn get_access_for_id(&self, id : &String)->Option<Vec<Access>>{
+    pub fn get_access_for_id(&self, id : &String)->Vec<Access>{
         let cache = self.id_access.lock().unwrap();
         match cache.get(id) {
-            Some(access) => Some(access.clone()),
-            None => None
+            Some(access) => access.clone(),
+            None => Vec::new()
         }
     }
 
@@ -108,6 +111,11 @@ impl Caches{
                 ()
             }
         }
+    }
+
+    pub fn get_all_id_access_as_json(&self)->Result<String, Error>{
+        let cache = self.id_access.lock().unwrap();
+        serde_json::to_string_pretty(&*cache).context("Error converting id access to json")
     }
 
     pub fn get_open_ports(&self)->Vec<u16>{

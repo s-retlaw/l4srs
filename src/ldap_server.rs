@@ -3,11 +3,11 @@ use futures::StreamExt;
 use std::convert::TryFrom;
 use tokio::net::TcpStream;
 use tokio_util::codec::{FramedRead, FramedWrite};
-//use crate::build_java;
+use std::net::SocketAddr;
 use ldap3_proto::simple::*;
 use ldap3_proto::LdapCodec;
-
-use crate::common::ServerCfg;
+use std::io;
+use crate::common::{ServerCfg, Access};
 
 pub struct LdapSession {
     dn: String,
@@ -27,20 +27,21 @@ impl LdapSession {
         }
     }
 
-    pub fn do_search(&mut self, lsr: &SearchRequest) -> Vec<LdapMsg> {
+    pub fn do_search(&mut self, lsr: &SearchRequest,  peer_addr : &io::Result<SocketAddr>) -> Vec<LdapMsg> {
         let mut base = lsr.base.to_string();
         base.remove(0);
         let parts : Vec<&str> = base.split(":").collect();
        
         let mut name = base.clone();
+        if name.starts_with("PT_"){
+            let id = &name[3..].to_string();
+            self.cfg.caches.add_access_for_id(id, Access::new_ldap(peer_addr, self.cfg.port));
+            
+        }
         if (parts.len() == 3) && (parts[0] =="MM") {
             let addr_str = parts[1].replace(".", "_");
             let name_parts : Vec<&str> = vec![&parts[0], &addr_str, &parts[2]]; 
             name = name_parts.join("_").to_string();
-            //match build_java::ensure_mm_class_exists(&self.cfg.web_root, &name,  &parts[1], parts[2]) {
-            //    Err(e) => eprintln!("Error creating MM class {}", e),
-            //    _ => (),
-            //}
       }
         //println!("the base is {}", name);
         vec![
@@ -75,6 +76,7 @@ impl LdapSession {
 }
 
 pub async fn handle_client(socket: TcpStream, cfg : ServerCfg) {
+    let peer_addr = socket.peer_addr();
     let (r, w) = tokio::io::split(socket);
     let mut reqs = FramedRead::new(r, LdapCodec);
     let mut resp = FramedWrite::new(w, LdapCodec);
@@ -104,7 +106,7 @@ pub async fn handle_client(socket: TcpStream, cfg : ServerCfg) {
 
         let result = match server_op {
             ServerOps::SimpleBind(sbr) => vec![session.do_bind(&sbr)],
-            ServerOps::Search(sr) => session.do_search(&sr),
+            ServerOps::Search(sr) => session.do_search(&sr, &peer_addr),
             ServerOps::Unbind(_) => {
                 // No need to notify on unbind (per rfc4511)
                 return;
