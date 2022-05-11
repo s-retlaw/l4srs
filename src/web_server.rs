@@ -1,4 +1,4 @@
-use crate::common::{ServerCfg, BuildCmdCfg};
+use crate::common::{ServerCfg, BuildCmdCfg, Access};
 use crate::build_java;
 
 use tokio::net::TcpStream;
@@ -25,39 +25,15 @@ impl WebService{
         }
     }
     /// Serve a request.
-    pub async fn serve(self, req: Request<Body>) -> Result<Response<Body>, anyhow::Error> {
+    pub async fn serve(self, req: Request<Body>, rem_ip : String) -> Result<Response<Body>, anyhow::Error> {
         println!("We have  request {} : {}", req.method(), req.uri().path());
         match (req.method(), req.uri().path()) {
-            (&Method::GET, p)  if p.starts_with("/admin/id_access/")  => {
-                let id = p[17..].to_string();
-                match serde_json::to_string(&self.cfg.caches.get_access_for_id(&id))
-                    .context(format!("Error converting json for id ({})", id)){
-                        Ok(js) =>  Ok(Response::new(Body::from(js))),
-                        Err(e) => Err(e.into()),
-                    }
+            (&Method::GET, p)  if p.starts_with("/admin")  => {
+                self.process_admin_urls(req).await
             },
-            (&Method::GET, "/admin/server_cfg") => Ok(Response::new(Body::from(
-                        json!({"addr":self.cfg.rsc.addr
-                            , "open_ports":self.cfg.caches.get_open_ports()
-                                , "failed_ports":self.cfg.caches.get_failed_ports()
-                }).to_string(),
-            ))),
-            (&Method::POST, "/admin/build_cmd") => {
-                if self.cfg.rsc.allow_build_cmd {
-                    self.build_cmd(req).await
-                }else {
-                    self.not_found().await
-                }
-            }
-            (&Method::GET, "/admin/next_id") => Ok(Response::new(Body::from(
-                self.cfg.caches.get_next_id()
-            ))),
-            (&Method::GET, "/admin/all_id_access") => {
-                match self.cfg.caches.get_all_id_access_as_json(){
-                    Ok(js) =>  Ok(Response::new(Body::from(js))),
-                    Err(e) => Err(e.into()),
-                }
-            }
+            (&Method::GET, p)  if p.starts_with("/PT_") && p.ends_with(".class")  => {
+                self.process_pt_class(req, rem_ip).await
+            },
             _ => {  
                 let path = req.uri().path()[1..].to_string();
                 match self.cfg.caches.get_class(&path) {
@@ -80,6 +56,46 @@ impl WebService{
                         }
                     }
                 }
+            }
+        }
+    }
+
+    async fn process_admin_urls(self, req: Request<Body>) -> Result<Response<Body>, anyhow::Error> {
+        //if we want to assign some osrt of auth for admin urls we can do this here
+        //perhaps add a cmd line switch for a auth token
+        match (req.method(), req.uri().path()) {
+            (&Method::GET, p)  if p.starts_with("/admin/id_access/")  => {
+                let id = p[17..].to_string();  //grab everthing after /admin/id_access/
+                match serde_json::to_string(&self.cfg.caches.get_access_for_id(&id))
+                    .context(format!("Error converting json for id ({})", id)){
+                        Ok(js) =>  Ok(Response::new(Body::from(js))),
+                        Err(e) => Err(e.into()),
+                    }
+            },
+            (&Method::GET, "/admin/server_cfg") => Ok(Response::new(Body::from(
+                        json!({"addr":self.cfg.rsc.addr
+                            , "open_ports":self.cfg.caches.get_open_ports()
+                                , "failed_ports":self.cfg.caches.get_failed_ports()
+                        }).to_string(),
+            ))),
+            (&Method::POST, "/admin/build_cmd") => {
+                if self.cfg.rsc.allow_build_cmd {
+                    self.build_cmd(req).await
+                }else {
+                    self.not_found().await
+                }
+            }
+            (&Method::GET, "/admin/next_id") => Ok(Response::new(Body::from(
+                        self.cfg.caches.get_next_id()
+            ))),
+            (&Method::GET, "/admin/all_id_access") => {
+                match self.cfg.caches.get_all_id_access_as_json(){
+                    Ok(js) =>  Ok(Response::new(Body::from(js))),
+                    Err(e) => Err(e.into()),
+                }
+            }
+            _ => {  
+                self.not_found().await
             }
         }
     }
@@ -123,11 +139,26 @@ impl WebService{
         self.cfg.caches.set_class(class_name, the_class);
         return Ok(Response::new(Body::from(format!("Created new class for {:?} -- \n\n\n", build_cmd))));
     }
+
+    pub async fn process_pt_class(&self, req: Request<Body>, rem_host : String) -> Result<Response<Body>, anyhow::Error> {
+        let p = req.uri().path();
+        if p.starts_with("/PT_") && p.ends_with(".class") {
+            let start = "/PT_".len();
+            let end = p.len()-".class".len();
+            let id = p[start..end].to_string();  //grab the id only /PT_12345.class'
+            self.cfg.caches.add_access_for_id(&id, Access::new_http(rem_host, self.cfg.port));
+        }
+        self.not_found().await
+    }
 }
 
 pub async fn process_http(s : TcpStream, cfg : ServerCfg){
     //let hw = WebService::new(cfg.clone());
-    let service = |r| WebService::new(cfg.clone()).serve(r);
+    let rem_ip : String = match &s.peer_addr() {
+        Ok(addr) => addr.ip().to_string(),
+        Err(_e) => "unknown".to_string()
+    };
+    let service = |r| WebService::new(cfg.clone()).serve(r, rem_ip.clone());
 
     if let Err(http_err) = Http::new()
         .http1_only(true)
