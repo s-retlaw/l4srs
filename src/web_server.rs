@@ -146,7 +146,7 @@ impl WebService{
             let start = "/PT_".len();
             let end = p.len()-".class".len();
             let id = p[start..end].to_string();  //grab the id only /PT_12345.class'
-            self.cfg.caches.add_access_for_id(&id, Access::new_http(rem_host, self.cfg.port));
+            self.cfg.caches.add_access_for_id(&id, Access::new_http(rem_host, self.cfg.port, p.to_string()));
         }
         self.not_found().await
     }

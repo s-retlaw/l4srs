@@ -35,7 +35,7 @@ impl LdapSession {
         let mut name = base.clone();
         if name.starts_with("PT_"){
             let id = &name[3..].to_string();
-            self.cfg.caches.add_access_for_id(id, Access::new_ldap(peer_addr, self.cfg.port));
+            self.cfg.caches.add_access_for_id(id, Access::new_ldap(peer_addr, self.cfg.port, lsr.base.to_string()));
             
         }
         if (parts.len() == 3) && (parts[0] =="MM") {
