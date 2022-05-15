@@ -11,9 +11,6 @@ use anyhow::{Context, Error};
 pub enum AccessType{
     LDAP,
     HTTP,
-//    PROXY,
-//    UNKNOWN,
-//    CALLBACK
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -47,16 +44,11 @@ impl Access{
     pub fn new_http(host : String, port : u16, path : String) -> Access {
         Access::new(AccessType::HTTP, host, port, path)
     }
-    
-//    pub fn new_callback(host : String, port : u16, path : String) -> Access {
-//        Access::new(AccessType::CALLBACK, host, port, path)
-//    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Caches{
     class : Arc<Mutex<HashMap<String, Vec<u8>>>>,
-//    access : Arc<Mutex<Vec<Access>>>,
     id_access : Arc<Mutex<HashMap<String, Vec<Access>>>>,
     open_ports : Arc<Mutex<Vec<u16>>>,
     failed_ports : Arc<Mutex<Vec<u16>>>,
@@ -66,7 +58,6 @@ impl Caches{
     pub fn new() -> Caches{
         Caches{
             class : Arc::new(Mutex::new(HashMap::new())),
- //           access : Arc::new(Mutex::new(Vec::new())),
             id_access : Arc::new(Mutex::new(HashMap::new())),
             open_ports : Arc::new(Mutex::new(Vec::new())),
             failed_ports : Arc::new(Mutex::new(Vec::new())),
@@ -86,16 +77,6 @@ impl Caches{
         cache.insert(class_name, class_data);
     }
 
- //   pub fn get_access(&self)->Vec<Access>{
- //       let cache = self.access.lock().unwrap();
- //       cache.clone()
- //   }
-
- //   pub fn add_access(&self, access : Access) {
- //       let mut cache  = self.access.lock().unwrap();
- //       cache.push(access);
- //   }
-    
     pub fn get_access_for_id(&self, id : &String)->Vec<Access>{
         let cache = self.id_access.lock().unwrap();
         match cache.get(id) {
@@ -143,7 +124,6 @@ impl Caches{
     //does this really belong here????
     ////Shoudl we store the IDs we issue
     pub fn get_next_id(&self) -> String{
-        //let uuid = self.ids.lock().unwrap();
         Uuid::new_v4().to_string()
     }
 }

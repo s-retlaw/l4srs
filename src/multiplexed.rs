@@ -6,7 +6,7 @@ use crate::tcp_proxy;
 use tokio::time::{timeout, Duration};
 use tokio::net::TcpListener;
 
-use std::net;
+use std::{net, thread};
 use std::str::FromStr;
 use std::fs::File;
 use std::io::Write;
@@ -92,6 +92,18 @@ async fn acceptor(listener: Box<TcpListener>, cfg : ServerCfg) {
     }
 }
 
+fn run_read_kb_thread(){
+    thread::spawn(move || {
+        println!("Press enter to print a line of dashes");
+        loop{
+            let mut buf = String::new(); 
+            let _ = std::io::stdin().read_line(&mut buf);
+            println!("-----------------------------------------------------------");
+        }
+    });
+}
+
+
 pub async fn run_multiplexed_servers(rsc : Arc<RunServerCfg>, caches : Arc<Caches>) {
     let mut tasks = Vec::new(); 
     let rsc = Arc::clone(&rsc);
@@ -130,7 +142,10 @@ pub async fn run_multiplexed_servers(rsc : Arc<RunServerCfg>, caches : Arc<Cache
     println!("");
     try_write(&rsc.ports_file_name, &opened);
     try_write(&rsc.failed_file_name, &failed);
-    if !opened.is_empty() { futures::future::join_all(tasks).await; }
+    if !opened.is_empty() {
+        run_read_kb_thread();
+        futures::future::join_all(tasks).await; 
+    }
 }
 
 fn try_write(file_name : &Option<String>, ports : &Vec<String>) {
