@@ -67,7 +67,7 @@ impl WebService{
                     Some(auth) => auth.to_str()?,
                     None => "",
                 };
-                println!("--------- we have a auth token {} - {}", token, auth);
+                //println!("--------- we have a auth token {} - {}", token, auth);
                 return Ok(format!("Bearer {}", token).eq(auth));
             },
             None => return Ok(true),
