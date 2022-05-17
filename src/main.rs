@@ -88,6 +88,10 @@ async fn main() -> () {
                 .long("pC1000")
                 .takes_value(false)
                 .help("Use the top 1000 common ports.")
+             ).arg(Arg::new("auth")
+                .long("auth")
+                .takes_value(true)
+                .help("Use to set a Bearer token for the admin urls.")
             ).arg(Arg::new("proxy")
                 .long("proxy")
                 .takes_value(true)
@@ -256,6 +260,7 @@ fn convert_args_for_run_server_cfg(m : &ArgMatches) -> RunServerCfg{
         proxy_addr : convert_option(m.value_of("proxy")),
         allow_build_cmd : m.is_present("allow_cmd"),
         no_fs : m.is_present("no_fs"),
+        auth_token : convert_option(m.value_of("auth")),
     }
 }
 

@@ -138,6 +138,7 @@ pub struct RunServerCfg{
     pub proxy_addr : Option<String>,
     pub allow_build_cmd : bool,
     pub no_fs : bool,
+    pub auth_token : Option<String>
 }
 
 #[derive(Debug, Clone)]

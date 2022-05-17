@@ -60,9 +60,25 @@ impl WebService{
         }
     }
 
+    fn check_auth(&self, req: &Request<Body>) -> Result<bool, anyhow::Error>{
+        match &self.cfg.rsc.auth_token {
+            Some(token) => {
+                let auth = match &req.headers().get("Authorization") {
+                    Some(auth) => auth.to_str()?,
+                    None => "",
+                };
+                println!("--------- we have a auth token {} - {}", token, auth);
+                return Ok(format!("Bearer {}", token).eq(auth));
+            },
+            None => return Ok(true),
+        }
+    }
+
     async fn process_admin_urls(self, req: Request<Body>) -> Result<Response<Body>, anyhow::Error> {
         //if we want to assign some osrt of auth for admin urls we can do this here
         //perhaps add a cmd line switch for a auth token
+        if !self.check_auth(&req)?{return self.not_authorized().await;}
+
         match (req.method(), req.uri().path()) {
             (&Method::GET, p)  if p.starts_with("/admin/id_access/")  => {
                 let id = p[17..].to_string();  //grab everthing after /admin/id_access/
@@ -98,6 +114,12 @@ impl WebService{
                 self.not_found().await
             }
         }
+    }
+
+    async fn not_authorized(&self) -> Result<Response<Body>, anyhow::Error>{
+        let mut not_authorized = Response::default();
+        *not_authorized.status_mut() = StatusCode::UNAUTHORIZED;
+        Ok(not_authorized)
     }
 
     async fn not_found(&self) -> Result<Response<Body>, anyhow::Error>{
